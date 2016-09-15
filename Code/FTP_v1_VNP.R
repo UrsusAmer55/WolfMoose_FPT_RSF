@@ -243,10 +243,10 @@ vegR<-raster("E:/Moose/Data/OutsideSpatial/NLCD11VNPclip1.tif") #raster: NLCD ha
 system.time(testEx2<-extract(vegR,VNPmDFsp[1:1000,],buffer=320))
 system.time(testEx<-extract(vegR,pc100km2))
 
-head(testEx2)
-data.frame(sapply(testEx2, mean))
-testout<-unlist(testEx2)
-head(testout)
+# head(testEx2)
+# data.frame(sapply(testEx2, mean))
+# testout<-unlist(testEx2)
+# head(testout)
 
 library(reshape2)
 
@@ -254,36 +254,55 @@ head(melt(testEx2),10)
 testEx2df<-melt(testEx2)
 
 
-str(testEx2df)
-
-library(dplyr)
-
-sub<-testEx2df %>%
-  group_by('L1','value') %>%
-  mutate(count = n())
-
-sub<-aadt %>%
-  select(FID_b30021,FID_AADT_T,CURR_VOL) %>%
-  group_by(FID_b30021) %>%
-  mutate(Rd.count=n_distinct(FID_AADT_T)) %>%
-  mutate(maxV=max(CURR_VOL)) %>%
-  mutate(meanV=mean(CURR_VOL))
-
-L1<-testEx2df$L1
-value<-testEx2df$value
-ddply(testEx2df,L1, transform, count = length(value))
+# str(testEx2df)
+# 
+# library(dplyr)
+# testEx2df$value<-as.factor(testEx2df$value)
+# testEx2df$L1<-as.factor(testEx2df$L1)
+# 
+# sub<-testEx2df %>%
+#   group_by(L1,value) %>%
+#   mutate(count = n())
+# 
+# head(sub)
+# 
+# library(plyr)
+# 
+# str(testEx2df)
+# count(testEx2df, vars=c("L1","value"))
+# ?aggregate
+# 
+# wolfave<-aggregate(testEx2df$value,list(testEx2df$L1),length)
+# head(wolfave)
+# 
+# head(w3)
+# 
+# sub<-aadt %>%
+#   select(FID_b30021,FID_AADT_T,CURR_VOL) %>%
+#   group_by(FID_b30021) %>%
+#   mutate(Rd.count=n_distinct(FID_AADT_T)) %>%
+#   mutate(maxV=max(CURR_VOL)) %>%
+#   mutate(meanV=mean(CURR_VOL))
+# 
+# L1<-testEx2df$L1
+# value<-testEx2df$value
+# ddply(testEx2df,L1, transform, count = length(value))
 y <- xtabs(~ L1 + value, testEx2df)
-x <- count(testEx2df, c('L1', 'value'))
+# x <- count(testEx2df, c('L1', 'value'))
 y<-as.data.frame(y)
 w <- reshape(y, 
              timevar = "value",
              idvar = c("L1"),
              direction = "wide")
 head(w)
-str(w)
-w<-as.data.frame(w)
-w2 <- data.frame(matrix(unlist(w), nrow=1000, byrow=T))
-head(w2)
+str(VNPmDFsp@data)
+
+mergetest<-merge(VNPmDFsp@data,w,by.x="ptid",by.y="L1")
+head(mergetest)
+
+merge(expcoefall,MSexStat,by.x="id",by.y="Idcollar")
+        
+#rename those columns hab !!!!
 
 
 
