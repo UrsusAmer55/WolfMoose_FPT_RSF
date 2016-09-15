@@ -144,7 +144,8 @@ M3_20<-M3_20[M3_20$dtPmDiff>=0,]
 M3_20$year<-format(M3_20$dtPmL,"%Y")
 
 
-
+M3spALLI3<-readRDS("E:/Moose/StateSpaceOutput/Combo_AllMooseCovar_072816.Rda")
+str(M3spALLI3)
 
 str(M3spALLI3)
 #needed to make traj in ade
@@ -186,15 +187,15 @@ plotltr(VNPm2, "dt/3600")
 is.sd(VNPm2)
 
 
-fpt2M<-fpt(VNPm,  seq(300,5000, length=30), units = c( "hours"))
+fpt2M<-fpt(VNPm,  seq(10,500, length=100), units = c( "hours"))
 
-fpt2M
+
 varout<-varlogfpt(fpt2M, graph = TRUE)
 meanout<-meanfpt(fpt2M, graph = TRUE)
 ## S3 method for class 'fipati'
 attr(fpt2M, "radii")
 
-plot(fpt2M, scale=1200, warn = FALSE)
+plot(fpt2M, scale=320, warn = FALSE)
 
 ###covert to a data frame
 VNPmDF<-ld(VNPm)
@@ -204,7 +205,7 @@ str(VNPmDF)
 
 # points from scratch
 VNPmDF$ptid<-1:nrow(VNPmDF)
-VNPmDF<-VNPmDF[1:100,]
+VNPmDF<-VNPmDF[1:300,]
 coords = cbind(VNPmDF$x, VNPmDF$y)
 sp = SpatialPoints(coords)
 # make spatial data frame
@@ -212,7 +213,12 @@ VNPmDFsp = SpatialPointsDataFrame(coords, VNPmDF)
 
 ?gBuffer
 str(VNPmDFsp)
-pc1100km <- gBuffer(VNPmDFsp, width=1100, id=VNPmDFsp$ptid )
+pc1100km <- gBuffer(VNPmDFsp, width=320,byid=TRUE )
+
+plot(pc1100km)
+plot(VNPmDFsp,add=TRUE)
+plot(VNPm[[1]])
+
 # Add data, and write to shapefile
 pc100km <- SpatialPolygonsDataFrame( pc100km, data=pc100km@data )
 writeOGR( pc100km, "pc100km", "pc100km", driver="ESRI Shapefile" )
