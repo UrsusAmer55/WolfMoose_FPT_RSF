@@ -225,7 +225,8 @@ pc100km2 <- SpatialPolygonsDataFrame( pc1100km, data=pc1100km@data )
 head(pc100km2)
 #writeOGR( pc100km, "pc100km", "pc100km", driver="ESRI Shapefile" )
 vegR<-raster("E:/Moose/Data/OutsideSpatial/NLCD11VNPclip1.tif") #raster: NLCD habitat
-
+nlcdtab<-read.csv("E:/Moose/Data/OutsideSpatial/NLCD11_Table.csv",header=TRUE) #table so you can see what raster value = what hab class
+nlcdtab[1:2]
 
 ###can use points and buffer with the "buffer" value in extract function
 ###look into functions "zonal"
@@ -295,14 +296,35 @@ w <- reshape(y,
              idvar = c("L1"),
              direction = "wide")
 head(w)
+
+colnames(w)<-c("ptid","OpenWater","DeciduousForest","EvergreenForest","MixedForest","ShrubScrub","WoodyWet","HerbWet")
+w$sum<-rowSums(w[2:8])
+summary(w$sum)
+
+w$PerWater<-w$OpenWater/w$sum
+w$PerWDecFor<-w$DeciduousForest/w$sum
+w$PerEverFor<-w$EvergreenForest/w$sum
+w$PerMixFor<-w$MixedForest/w$sum
+w$PerShrub<-w$ShrubScrub/w$sum
+w$PerWoodWet<-w$WoodyWet/w$sum
+w$PerHerbWet<-w$HerbWet/w$sum
+
+hist(w$PerHerbWet)
+
+##subset to just the percentage and ID
+names(w)
+w2 <- w[c(1,10:16)]
+names(w2)
+
+
 str(VNPmDFsp@data)
 
-mergetest<-merge(VNPmDFsp@data,w,by.x="ptid",by.y="L1")
+mergetest<-merge(VNPmDFsp@data,w2,by.x="ptid",by.y="ptid")
 head(mergetest)
 
 merge(expcoefall,MSexStat,by.x="id",by.y="Idcollar")
         
-#rename those columns hab !!!!
+#rename those columns hab + turn to percentages!!!!!
 
 
 
