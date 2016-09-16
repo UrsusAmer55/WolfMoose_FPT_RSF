@@ -164,7 +164,7 @@ names(M3spALLI3)
 X<-M3spALLI3[!duplicated(M3spALLI3[,16]),]
 X<-testM[!duplicated(testM[,16]),]
 VNPm <- as.ltraj(xy = X[,c("X","Y")], date = X$EndTimeL, id = X$IDcollar)
-VNPm 
+
 plot(VNPm)
 ###covert to a data frame
 VNPmDF<-ld(VNPm)
@@ -205,7 +205,7 @@ str(VNPmDF)
 
 # points from scratch
 VNPmDF$ptid<-1:nrow(VNPmDF)
-VNPmDF<-VNPmDF[1:1000,]
+VNPmDF<-VNPmDF[1:400,]
 coords = cbind(VNPmDF$x, VNPmDF$y)
 sp = SpatialPoints(coords)
 # make spatial data frame
@@ -241,7 +241,7 @@ nlcdtab[1:2]
 #we will also want temp included if important to wolves?
 
 
-system.time(testEx2<-extract(vegR,VNPmDFsp[1:1000,],buffer=320))
+system.time(testEx2<-extract(vegR,VNPmDFsp[1:400,],buffer=320))
 system.time(testEx<-extract(vegR,pc100km2))
 
 # head(testEx2)
@@ -296,9 +296,11 @@ w <- reshape(y,
              idvar = c("L1"),
              direction = "wide")
 head(w)
-
-colnames(w)<-c("ptid","OpenWater","DeciduousForest","EvergreenForest","MixedForest","ShrubScrub","WoodyWet","HerbWet")
-w$sum<-rowSums(w[2:8])
+nlcdtab[1:2]
+#colnames(w)<-c("ptid","OpenWater","DeciduousForest","EvergreenForest","MixedForest","ShrubScrub","WoodyWet","HerbWet")
+colnames(w)<-c("ptid","DeciduousForest","EvergreenForest","MixedForest","WoodyWet","HerbWet")
+head(w)
+w$sum<-rowSums(w[2:ncol(w)])
 summary(w$sum)
 
 w$PerWater<-w$OpenWater/w$sum
@@ -313,7 +315,7 @@ hist(w$PerHerbWet)
 
 ##subset to just the percentage and ID
 names(w)
-w2 <- w[c(1,10:16)]
+w2 <- w[c(1,8:12)]
 names(w2)
 
 
@@ -322,9 +324,36 @@ str(VNPmDFsp@data)
 mergetest<-merge(VNPmDFsp@data,w2,by.x="ptid",by.y="ptid")
 head(mergetest)
 
-merge(expcoefall,MSexStat,by.x="id",by.y="Idcollar")
-        
-#rename those columns hab + turn to percentages!!!!!
+str(X)
+VNPm400<-X[1:400,]
+VNPm400 <- as.ltraj(xy = VNPm400[,c("X","Y")], date = VNPm400$EndTimeL, id = VNPm400$IDcollar)
+
+fpt2M320<-fpt(VNPm400,  c(320), units = c( "hours"))
+plot(fpt2M320, scale=320, warn = FALSE)
+
+
+str(mergetest)
+attr(fpt2M320,"date")
+
+fpt2M320["date"]
+
+dfT<-as.data.frame(fpt2M320[1])
+plot(dfT$r1)
+head(mergetest)
 
 
 
+## S3 method for class 'fipati'
+test<-as.data.frame(fpt2M320[1])
+head(test)
+test<-fpt2M320[1]
+str(test)
+summary(test[1]$r1)
+test2<-unlist(test[1])
+str(test2)
+summary(test2)
+head(test2,300)
+
+
+test<-unlist(fpt2M320[1])
+head(test)
