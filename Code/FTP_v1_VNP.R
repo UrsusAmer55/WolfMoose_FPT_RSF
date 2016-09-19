@@ -152,6 +152,8 @@ str(M3spALLI3)
 #EndTimeL,IDcollar, X, Y
 unique(M3spALLI3$IDcollar)
 testM<-M3spALLI3[M3spALLI3$IDcollar=="73_99211"|M3spALLI3$IDcollar=="4_99216"|M3spALLI3$IDcollar=="13_101216",]
+testM<-M3spALLI3[M3spALLI3$IDcollar=="73_99211",]
+
 
 testMspr<-testM[testM$season=="Spring",]
 
@@ -163,7 +165,12 @@ names(M3spALLI3)
 #remove the duplicates
 X<-M3spALLI3[!duplicated(M3spALLI3[,16]),]
 X<-testM[!duplicated(testM[,16]),]
+head(X)
+X<-X[order(X$ID,X$T.POSIXL),]
+
 VNPm <- as.ltraj(xy = X[,c("X","Y")], date = X$EndTimeL, id = X$IDcollar)
+
+
 
 plot(VNPm)
 ###covert to a data frame
@@ -171,7 +178,7 @@ VNPmDF<-ld(VNPm)
 
 #function dl() converts back to traj
 is.regular(VNPm)
-head(rec(VNPm)[[2]])
+`head(rec(VNPm)[[2]])
 
 plotltr(VNPm, "dt/3600")
 head(VNPm)
@@ -195,7 +202,7 @@ meanout<-meanfpt(fpt2M, graph = TRUE)
 ## S3 method for class 'fipati'
 attr(fpt2M, "radii")
 
-plot(fpt2M, scale=320, warn = FALSE)
+plot(fpt2M, scale=40, warn = FALSE)
 
 ###covert to a data frame
 VNPmDF<-ld(VNPm)
@@ -213,7 +220,7 @@ VNPmDFsp = SpatialPointsDataFrame(coords, VNPmDF)
 
 ?gBuffer
 str(VNPmDFsp)
-pc1100km <- gBuffer(VNPmDFsp, width=320,byid=TRUE )
+pc1100km <- gBuffer(VNPmDFsp, width=40,byid=TRUE )
 
 plot(pc1100km)
 plot(VNPm[1],add=TRUE)
@@ -241,17 +248,15 @@ nlcdtab[1:2]
 #we will also want temp included if important to wolves?
 
 
-system.time(testEx2<-extract(vegR,VNPmDFsp[1:400,],buffer=320))
+system.time(testEx2<-extract(vegR,VNPmDFsp[1:400,],buffer=40))
 system.time(testEx<-extract(vegR,pc100km2))
 
-# head(testEx2)
+head(testEx2)
 # data.frame(sapply(testEx2, mean))
 # testout<-unlist(testEx2)
 # head(testout)
 
 library(reshape2)
-
-head(melt(testEx2),10)
 testEx2df<-melt(testEx2)
 
 
@@ -311,7 +316,7 @@ w$PerShrub<-w$ShrubScrub/w$sum
 w$PerWoodWet<-w$WoodyWet/w$sum
 w$PerHerbWet<-w$HerbWet/w$sum
 
-hist(w$PerHerbWet)
+hist(w$PerWDecFor)
 
 ##subset to just the percentage and ID
 names(w)
@@ -328,8 +333,9 @@ str(X)
 VNPm400<-X[1:400,]
 VNPm400 <- as.ltraj(xy = VNPm400[,c("X","Y")], date = VNPm400$EndTimeL, id = VNPm400$IDcollar)
 
-fpt2M320<-fpt(VNPm400,  c(320), units = c( "hours"))
-plot(fpt2M320, scale=320, warn = FALSE)
+fpt2M320<-fpt(VNPm400,  c(40), units = c( "hours"))
+plot(fpt2M320, scale=40, warn = FALSE)
+
 
 
 str(mergetest)
@@ -341,11 +347,16 @@ dfT<-as.data.frame(fpt2M320[1])
 plot(dfT$r1)
 head(mergetest)
 
-
+newdf1 <- [['fpt2M320']]
 
 ## S3 method for class 'fipati'
 test<-as.data.frame(fpt2M320[1])
 head(test)
+test2 <- test[!is.na(test$r1)]
+test2<-test[complete.cases(test),]
+
+test2<-lapply(list, function(x) test[!is.na(test)])
+
 test<-fpt2M320[1]
 str(test)
 summary(test[1]$r1)
