@@ -143,8 +143,124 @@ M3_20<-M3[M3$dtPm>="2011-01-24 00:00:00",]
 M3_20<-M3_20[M3_20$dtPmDiff>=0,]
 M3_20$year<-format(M3_20$dtPmL,"%Y")
 
+#need to run separately on M115 and M20
+X<-M3_20
 
-M3spALLI3<-readRDS("E:/Moose/StateSpaceOutput/Combo_AllMooseCovar_072816.Rda")
+X<-X[order(X$Uniq_ID,X$dtPmL),]
+head(X)
+
+#create datetime/idcollar combo
+X$collardate<-paste(X$IDcollar,X$dtPmL,sep="_")
+
+##get rid of duplicates
+names(X)
+
+dups<-X[duplicated(X[,34]),]
+head(dups,40)
+table((dups$IDcollar))
+X2<-X[!duplicated(X[,34]),]
+table((X2$IDcollar))
+
+VNPm <- as.ltraj(xy = X2[,c("X","Y")], date = X2$dtPmL, id = X2$IDcollar)
+
+VNPm
+is.regular(VNPm)
+plotltr(VNPm[5], "dt/3600")
+
+
+##function to identify if time lag greater than 1 day
+foo <- function(dt) {
+   return(dt> (.5*(3600*24)))
+   }
+
+VNPm2 <- cutltraj(VNPm, "foo(dt)", nextr = TRUE)
+VNPm2
+
+VNPm2df<-ld(VNPm2)
+head(VNPm2df)
+
+###rename columns for Interpolate funcs
+VNPm2df$X<-VNPm2df$x
+names(VNPm2df)[names(VNPm2df)=="x"] <- "X"
+names(VNPm2df)[names(VNPm2df)=="y"] <- "Y"
+names(VNPm2df)[names(VNPm2df)=="date"] <- "Time"
+
+UID<-unique(VNPm2df$burst)
+samplehold<-NULL
+for(i in 1:length(unique(UID))){
+  sub<-VNPm2df[VNPm2df$burst==UID[i],]
+  Moose.Data <- InterpolatePoints(sub, n = 20,units="min")$Data
+  Moose.VT <- GetVT(Moose.Data, units = "min")
+  Moose.VT$burstID<-UID[i]
+  Moose.VT$ID<-rep(unique(sub$burst),nrow(Moose.VT))
+  Moose.VT$Collar<-rep(unique(sub$id),nrow(Moose.VT))
+  #Moose.VT<-cbind(Moose.VT,sub$X[c(3:nrow(Moose.VT))],sub$Y[c(3:nrow(Moose.VT))],sub$dtPmL[c(3:nrow(Moose.VT))])
+  samplehold<-rbind(samplehold,Moose.VT)
+}
+
+
+
+###446751 obvs going in - not w/ interp 548959
+1-(446751/548959)
+
+VNPmN<-samplehold
+str(VNPmN)
+###convert T.Posix to Local
+VNPmN$T.POSIX <- as.POSIXct(VNPmN$T.POSIX, tz="GMT")
+# Moose.VT$T.POSIXL<-format(Moose.VT$T.POSIX, tz="America/Chicago",usetz=TRUE)
+# Moose.VT$T.POSIXL<-as.POSIXct(Moose.VT$T.POSIXL)
+###for 20 min group
+VNPmN$EndTimeL<-VNPmN$T.POSIX+(10*60)
+head(VNPmN)
+
+Re(VNPmN$Z.end[1])
+VNPmN$Z.endCH<-as.character(VNPmN$Z.end)
+
+step2<-strsplit(VNPmN$Z.endCH, "i", fixed = TRUE)
+step2<-as.character(step2)
+step3 <-as.numeric(unlist(strsplit(step2, "+", fixed = TRUE)))
+
+step3even <- step3[seq(1, length(step3), 2)]
+step3odd <- step3[seq(2, length(step3), 2)]
+
+
+step4even<-as.data.frame((step3even))
+step4odd<-as.data.frame((step3odd))
+colnames(step4even)<-"X.ENDloc"
+colnames(step4odd)<-"Y.ENDloc"
+
+VNPmN<-cbind(VNPmN,step4even,step4odd)
+
+VNPmN$X<-VNPmN$X.ENDloc #change names of coords
+VNPmN$Y<-VNPmN$Y.ENDloc #change names of coords
+
+
+head(VNPmN)
+VNPmNltrajINT <- as.ltraj(xy = VNPmN[,c("X","Y")], date = VNPmN$EndTimeL, id = VNPmN$burstID)
+
+VNPmNltrajINT 
+is.regular(VNPmNltrajINT)
+
+head(samplehold)
+
+
+
+
+
+
+
+
+
+
+refda <- strptime("00:00:", "%H:%M")
+refda
+
+puech3 <- setNA(puech2, refda, 1, units = "day")
+puech3
+
+
+#This was used to read in interp data used in HMM analysis
+#M3spALLI3<-readRDS("E:/Moose/StateSpaceOutput/Combo_AllMooseCovar_072816.Rda")
 str(M3spALLI3)
 
 str(M3spALLI3)
@@ -330,16 +446,53 @@ mergetest<-merge(VNPmDFsp@data,w2,by.x="ptid",by.y="ptid")
 head(mergetest)
 
 str(X)
-VNPm400<-X[1:400,]
+VNPm400<-X[1:700,]
 VNPm400 <- as.ltraj(xy = VNPm400[,c("X","Y")], date = VNPm400$EndTimeL, id = VNPm400$IDcollar)
 
-fpt2M320<-fpt(VNPm400,  c(40), units = c( "hours"))
-plot(fpt2M320, scale=40, warn = FALSE)
 
+
+fpt2M320<-fpt(VNPm400,  c(40), units = c( "hours"))
+plot(fpt2M320, scale=40, warn = TRUE)
+
+?fpt
+
+
+str(fpt2M320)
+attr(fpt2M320$data.frame$r1,"date")
+structure(fpt2M320)
+
+dftest<-as.data.frame(fpt2M320[[1]])
+head(dftest)
+dftest2 <- dftest[!is.na(dftest$r1)]
+
+dates<-as.data.frame(attr(dftest,"date"))
+head(dates)
+colnames(dates)<-c("fipatiDATE")
+
+
+fptval<-dftest$r1
+head(fptval)
+
+
+fptvaldate<-cbind(dates,fptval)
+head(fptvaldate)
+
+head(VNPm400)
+VNPm400DF<-ld(VNPm400)
+head(VNPm400DF)
 
 
 str(mergetest)
-attr(fpt2M320,"date")
+mergetest2<-merge(mergetest,fptvaldate,by.x="date",by.y="fipatiDATE")
+head(mergetest2)
+
+plot(mergetest2$PerWDecFor,mergetest2$fptval)
+plot(mergetest2$PerEverFor,mergetest2$fptval)
+plot(mergetest2$PerMixFor,mergetest2$fptval)
+plot(mergetest2$PerWoodWet,mergetest2$fptval)
+plot(mergetest2$PerHerbWet,mergetest2$fptval)
+
+#attr(fpt2M320,"radii")
 
 fpt2M320["date"]
 
