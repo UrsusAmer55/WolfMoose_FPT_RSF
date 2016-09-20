@@ -319,18 +319,84 @@ head(Winmeans)
 str(Winmeans)
 unique(Winmeans$Group.1)
 WinmeansN<-cbind(Winmeans,nobs)
+head(WinmeansN)
+
+
+###get the weighted mean by individual ID-collar
+
+WinmeansN$IDcollar<-substr(WinmeansN$Group.1,1,9)
+WinmeansN$ID<-substr(WinmeansN$Group.1,1,2)
+WinmeansN$ID<-as.factor(WinmeansN$ID)
+unique(WinmeansN$ID)
+WinmeansN$ID<-as.factor(WinmeansN$IDcollar)
+unique(WinmeansN$IDcollar)
+
+library(data.table)
+
+dt <- as.data.table(WinmeansN)
+head(dt)
+names(dt)
+colsToKeep = c(names(WinmeansN[,2:102]))
+
+
+dt2 <- dt[,lapply(.SD,weighted.mean,w=nobs), 
+          by = list(IDcollar), .SDcols = colsToKeep]
+
+dfWinID<-data.frame(dt2)
+head(dfWinID)
+unique(dfWinID$IDcollar)
+names(dfWinID)
+
+WinmeansbyCollID<-colMeans()
+  ?colMeans
 
 
 
+library(matrixStats)
+colSds(dfWinID[,2:101])
+
+head(dfWinID)
+
+dfWinID$one<-"1"
 ?aggregate
+aggregate(dfWinID[,2:101], FUN=mean,by=list(dfWinID$one),na.action = na.omit)
+head(dfWinID)
 
-head(Winmeans)
-str(Winmeans)
 
-str(varoutWIN)
+with(dfWinID[,2:101], aggregate(dfWinID[,2:101], FUN =  function(x) c( SD = sd(x), MN= mean(x) ) ) )
+
+head(dfWinID)
+plot(colMeans(dfWinID[,2:101],na.rm = TRUE))
+
+mean<-aggregate(dfWinID[,2:101], FUN=mean,by=list(dfWinID$one),na.rm=TRUE)
+stdev<-aggregate(dfWinID[,2:101], FUN=sd,by=list(dfWinID$one),na.rm=TRUE)
+num<-with(dfWinID, aggregate(dfWinID[,2:101], list(one), FUN = function(x) length(x)))
+
+names(mean)
+str(mean)
+
+meanSDn<-rbind(mean[,2:101],stdev[,2:101],num[,2:101])
+meanSDnt<-t(meanSDn)
+head(meanSDnt)
+colnames(meanSDnt)<-c("mean","sd","n")
+meanSDnt<-data.frame(meanSDnt)
+str(meanSDnt)
 radii<-as.data.frame(attr(varoutWIN,"radii"))
 colnames(radii)<-c("radii")
 str(radii)
+meanSDntR<-cbind(meanSDnt,radii)
+head(meanSDntR)
+meanSDntR$UPCI<-meanSDntR$mean+(1.96*(meanSDntR$sd/sqrt(meanSDntR$n)))
+meanSDntR$LOCI<-meanSDntR$mean-(1.96*(meanSDntR$sd/sqrt(meanSDntR$n)))  
+  
+
+plot(meanSDntR$radii,meanSDntR$mean,ylim=c(0,1.5))
+lines(meanSDntR$radii,meanSDntR$mean)
+lines(meanSDntR$radii,meanSDntR$UPCI,col="red")
+lines(meanSDntR$radii,meanSDntR$LOCI,col="red")
+
+str(varoutWIN)
+
 
 attributes(varoutWINdf) <- NULL
 str(varoutWINdf)
