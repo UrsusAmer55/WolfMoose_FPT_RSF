@@ -234,29 +234,81 @@ VNPmN<-cbind(VNPmN,step4even,step4odd)
 VNPmN$X<-VNPmN$X.ENDloc #change names of coords
 VNPmN$Y<-VNPmN$Y.ENDloc #change names of coords
 
+saveRDS(VNPmN,"E:/Moose/FPT/DataProc/VNPmN_091916.R")
+
+VNPmN$month<-format(VNPmN$EndTimeL,"%m")
+VNPmN$month<-as.numeric(VNPmN$month)
+VNPmN$season<-NA
+VNPmN$season[VNPmN$month>=4 & VNPmN$month<7]<- "Spring"
+VNPmN$season[VNPmN$month>=7 & VNPmN$month<11]<- "Summer"
+VNPmN$season[VNPmN$month==11 |VNPmN$month==12 | VNPmN$month==01 | VNPmN$month==02 | VNPmN$month==03 ]<- "Winter"
+
+VNPmNspr<-VNPmN[VNPmN$season=="Spring",]
+VNPmNsum<-VNPmN[VNPmN$season=="Summer",]
+VNPmNwin<-VNPmN[VNPmN$season=="Winter",]
+
+VNPmNspr$burstID<-droplevels(VNPmNspr$burstID)
+VNPmNsum$burstID<-droplevels(VNPmNsum$burstID)
+VNPmNwin$burstID<-droplevels(VNPmNwin$burstID)
+
+
 
 head(VNPmN)
-VNPmNltrajINT <- as.ltraj(xy = VNPmN[,c("X","Y")], date = VNPmN$EndTimeL, id = VNPmN$burstID)
+VNPmNsprtrajINT <- as.ltraj(xy = VNPmNspr[,c("X","Y")], date = VNPmNspr$EndTimeL, id = VNPmNspr$burstID)
+VNPmNsumtrajINT <- as.ltraj(xy = VNPmNsum[,c("X","Y")], date = VNPmNsum$EndTimeL, id = VNPmNsum$burstID)
+VNPmNwintrajINT <- as.ltraj(xy = VNPmNwin[,c("X","Y")], date = VNPmNwin$EndTimeL, id = VNPmNwin$burstID)
 
-VNPmNltrajINT 
-is.regular(VNPmNltrajINT)
+##function to identify if time lag greater than 1 day
+foo <- function(dt) {
+  return(dt> (.5*(3600*24)))
+}
 
-head(samplehold)
+VNPmNsprtrajINT2 <- cutltraj(VNPmNsprtrajINT, "foo(dt)", nextr = TRUE)
+VNPmNsprtrajINT2
+
+VNPmNsumtrajINT2 <- cutltraj(VNPmNsumtrajINT, "foo(dt)", nextr = TRUE)
+VNPmNsumtrajINT2
+
+VNPmNwintrajINT2 <- cutltraj(VNPmNwintrajINT, "foo(dt)", nextr = TRUE)
+VNPmNwintrajINT2
 
 
 
+VNPmNsprtrajINT 
+is.regular(VNPmNwintrajINT2)
+plot(VNPmNsumtrajINT[48])
+str(VNPmNltrajINT)
+
+
+#find the var for the pop FPT but only use the values if at least X (maybe 360) locs = 5 days
+((5*24)*60)/20
+
+
+WINfpt<-fpt(VNPmNwintrajINT2,  seq(30,1000, length=100), units = c( "hours"))
+
+varoutWIN<-varlogfpt(WINfpt, graph = FALSE)
+head(varoutWIN)
+plot(varoutWIN$r30)
+names(varoutWIN)
+
+str(varoutWIN)
+radii<-as.data.frame(attr(varoutWIN,"radii"))
+
+###need to find the max and return the corresponding radii
 
 
 
+str(radii)
+structure(fpt2M320)
 
 
+varoutWIN[, "max"] <- apply(df[, 2:26], 1, max)
+
+str(varout)
+plot(varout$r1)
+meanout<-meanfpt(WINfpt, graph = TRUE)
 
 
-refda <- strptime("00:00:", "%H:%M")
-refda
-
-puech3 <- setNA(puech2, refda, 1, units = "day")
-puech3
 
 
 #This was used to read in interp data used in HMM analysis
