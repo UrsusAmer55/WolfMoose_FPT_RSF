@@ -235,6 +235,10 @@ VNPmN$X<-VNPmN$X.ENDloc #change names of coords
 VNPmN$Y<-VNPmN$Y.ENDloc #change names of coords
 
 saveRDS(VNPmN,"E:/Moose/FPT/DataProc/VNPmN_091916.R")
+VNPmN<-readRDS("E:/Moose/FPT/DataProc/VNPmN_091916.R")
+
+
+
 
 VNPmN$month<-format(VNPmN$EndTimeL,"%m")
 VNPmN$month<-as.numeric(VNPmN$month)
@@ -272,16 +276,21 @@ VNPmNsumtrajINT2
 VNPmNwintrajINT2 <- cutltraj(VNPmNwintrajINT, "foo(dt)", nextr = TRUE)
 VNPmNwintrajINT2
 
+VNPmNsprtrajINTdf<-ld(VNPmNsprtrajINT)
+str(VNPmNsprtrajINTdf)
 
-
-VNPmNsprtrajINT 
+VNPmNsprtrajINT2 
 is.regular(VNPmNwintrajINT2)
 plot(VNPmNsumtrajINT[48])
 str(VNPmNltrajINT)
+VNPmNwintrajINT2df<-ld(VNPmNwintrajINT2)
+str(VNPmNwintrajINT2df)
 
 
-#find the var for the pop FPT but only use the values if at least X (maybe 360) locs = 5 days
-((5*24)*60)/20
+totlocs<-with(VNPmNwintrajINT2df, aggregate(dist, list(burst), FUN = function(x) length(x)))
+winbursts<-unique(VNPmNwintrajINT2df$burst)
+
+
 
 
 WINfpt<-fpt(VNPmNwintrajINT2,  seq(30,1000, length=100), units = c( "hours"))
@@ -290,9 +299,54 @@ varoutWIN<-varlogfpt(WINfpt, graph = FALSE)
 head(varoutWIN)
 plot(varoutWIN$r30)
 names(varoutWIN)
+varoutWINdf<-data.frame(varoutWIN)
+head(varoutWINdf)
+str(varoutWINdf)
+
+varoutWINdf2<-cbind(winbursts,totlocs,varoutWINdf)
+head(varoutWINdf2)
+
+#remove bursts with less than 360 aka 5 days
+((5*24)*60)/20
+varoutWINdf3<-varoutWINdf2[varoutWINdf2$x>=500,]
+names(varoutWINdf3)
+
+str(varoutWINdf3)
+Winmeans<-aggregate(varoutWINdf3[,4:103],by=list(varoutWINdf3$winbursts), mean)
+nobs<-varoutWINdf3[,3]
+str(nobs)
+head(Winmeans)
+str(Winmeans)
+unique(Winmeans$Group.1)
+WinmeansN<-cbind(Winmeans,nobs)
+
+
+
+?aggregate
+
+head(Winmeans)
+str(Winmeans)
 
 str(varoutWIN)
 radii<-as.data.frame(attr(varoutWIN,"radii"))
+colnames(radii)<-c("radii")
+str(radii)
+
+attributes(varoutWINdf) <- NULL
+str(varoutWINdf)
+varoutWINdf<-data.frame(unlist(str(varoutWINdf)))
+
+str(VNPmNspr)
+
+# radiit<-t(radii)
+# str(radiit)
+
+str(varoutWIN)
+
+varoutWINt<-t(varoutWIN)
+head(varoutWINt)
+
+varoutWINr<-rbind(varoutWIN,radii)
 
 ###need to find the max and return the corresponding radii
 
