@@ -293,10 +293,12 @@ winbursts<-unique(VNPmNwintrajINT2df$burst)
 
 
 
-WINfpt<-fpt(VNPmNwintrajINT2,  seq(30,1000, length=100), units = c( "hours"))
+WINfpt<-fpt(VNPmNwintrajINT2,  seq(10,500, length=49), units = c( "hours"))
+
+
 
 varoutWIN<-varlogfpt(WINfpt, graph = FALSE)
-head(varoutWIN)
+str(varoutWIN)
 plot(varoutWIN$r30)
 names(varoutWIN)
 varoutWINdf<-data.frame(varoutWIN)
@@ -312,7 +314,7 @@ varoutWINdf3<-varoutWINdf2[varoutWINdf2$x>=500,]
 names(varoutWINdf3)
 
 str(varoutWINdf3)
-Winmeans<-aggregate(varoutWINdf3[,4:103],by=list(varoutWINdf3$winbursts), mean)
+Winmeans<-aggregate(varoutWINdf3[,4:ncol(varoutWINdf3)],by=list(varoutWINdf3$winbursts), mean)
 nobs<-varoutWINdf3[,3]
 str(nobs)
 head(Winmeans)
@@ -336,7 +338,8 @@ library(data.table)
 dt <- as.data.table(WinmeansN)
 head(dt)
 names(dt)
-colsToKeep = c(names(WinmeansN[,2:102]))
+str(dt)
+colsToKeep = c(names(WinmeansN[,2:51]))
 
 
 dt2 <- dt[,lapply(.SD,weighted.mean,w=nobs), 
@@ -347,35 +350,24 @@ head(dfWinID)
 unique(dfWinID$IDcollar)
 names(dfWinID)
 
-WinmeansbyCollID<-colMeans()
-  ?colMeans
 
 
-
-library(matrixStats)
-colSds(dfWinID[,2:101])
 
 head(dfWinID)
 
 dfWinID$one<-"1"
-?aggregate
-aggregate(dfWinID[,2:101], FUN=mean,by=list(dfWinID$one),na.action = na.omit)
-head(dfWinID)
+names(dfWinID)
+plot(colMeans(dfWinID[,2:50],na.rm = TRUE))
 
-
-with(dfWinID[,2:101], aggregate(dfWinID[,2:101], FUN =  function(x) c( SD = sd(x), MN= mean(x) ) ) )
-
-head(dfWinID)
-plot(colMeans(dfWinID[,2:101],na.rm = TRUE))
-
-mean<-aggregate(dfWinID[,2:101], FUN=mean,by=list(dfWinID$one),na.rm=TRUE)
-stdev<-aggregate(dfWinID[,2:101], FUN=sd,by=list(dfWinID$one),na.rm=TRUE)
-num<-with(dfWinID, aggregate(dfWinID[,2:101], list(one), FUN = function(x) length(x)))
+names(dfWinID)
+mean<-aggregate(dfWinID[,2:50], FUN=mean,by=list(dfWinID$one),na.rm=TRUE)
+stdev<-aggregate(dfWinID[,2:50], FUN=sd,by=list(dfWinID$one),na.rm=TRUE)
+num<-with(dfWinID, aggregate(dfWinID[,2:50], list(one), FUN = function(x) length(x)))
 
 names(mean)
 str(mean)
 
-meanSDn<-rbind(mean[,2:101],stdev[,2:101],num[,2:101])
+meanSDn<-rbind(mean[,2:50],stdev[,2:50],num[,2:50])
 meanSDnt<-t(meanSDn)
 head(meanSDnt)
 colnames(meanSDnt)<-c("mean","sd","n")
@@ -390,10 +382,14 @@ meanSDntR$UPCI<-meanSDntR$mean+(1.96*(meanSDntR$sd/sqrt(meanSDntR$n)))
 meanSDntR$LOCI<-meanSDntR$mean-(1.96*(meanSDntR$sd/sqrt(meanSDntR$n)))  
   
 
-plot(meanSDntR$radii,meanSDntR$mean,ylim=c(0,1.5))
-lines(meanSDntR$radii,meanSDntR$mean)
-lines(meanSDntR$radii,meanSDntR$UPCI,col="red")
-lines(meanSDntR$radii,meanSDntR$LOCI,col="red")
+plot(meanSDntR$radii2,meanSDntR$mean,ylim=c(0.4,1))
+lines(meanSDntR$radii2,meanSDntR$mean)
+lines(meanSDntR$radii2,meanSDntR$UPCI,col="red")
+lines(meanSDntR$radii2,meanSDntR$LOCI,col="red")
+
+meanSDntR$radii2<-round(meanSDntR$radii,2)
+text(meanSDntR$radii2,meanSDntR$LOCI,labels=meanSDntR$radii2)
+?text
 
 str(varoutWIN)
 
