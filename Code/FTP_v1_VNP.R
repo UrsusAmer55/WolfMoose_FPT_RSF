@@ -17,6 +17,11 @@ library(rgdal)
 library(chron)
 
 M1<-read.csv("E:/Moose/Code_Projects/VNP/Output/AllMooseLocs.csv",header=TRUE)
+head(test)
+
+test<-M1[M1$Uniq_ID==1&M1$Collar_ID==101216&M1$Date=="4/1/2011"&M1$northing==5372855,]
+
+#2011-04-01 00:09:11
 
 ###remove: Collar_ID: 47695, 31188, not from VNP study
 M2<-M1[c(M1$Collar_ID!=31188),]
@@ -251,16 +256,46 @@ VNPmNspr<-VNPmN[VNPmN$season=="Spring",]
 VNPmNsum<-VNPmN[VNPmN$season=="Summer",]
 VNPmNwin<-VNPmN[VNPmN$season=="Winter",]
 
+VNPmNspr$EndTimeUTC<-format(VNPmNspr$EndTimeL, tz="GMT",usetz=TRUE)
+VNPmNspr$EndTimeUTC<-as.POSIXct(VNPmNspr$EndTimeUTC)
+
+#LOCS <- matrix(c(VNPmNspr$,48.5000), nrow=1)
+
+VNPloc <- matrix(c(-92.8823,48.5000), nrow=1)
+VNPmNspr$sunpos<-solarpos(VNPloc,VNPmNspr$EndTimeL)[,2]
+
+#https://www.timeanddate.com/astronomy/different-types-twilight.html
+
+VNPmNspr$DayPeriod<-NA
+VNPmNspr$DayPeriod[VNPmNspr$sunpos<12&VNPmNspr$sunpos>-12]<-"Crepuscular"
+VNPmNspr$DayPeriod[VNPmNspr$sunpos>=12]<-"Day"
+VNPmNspr$DayPeriod[VNPmNspr$sunpos<=-12]<-"Night"
+
+table(VNPmNspr$DayPeriod)
+
+test<-VNPmNspr[VNPmNspr$DayPeriod=="Night",]
+unique(test$sunpos)
+hist(test$sunpos)
+
+
+# VNPmNspr$sundown <- sunriset(VNPloc, VNPmNspr$EndTimeL, direction="sunset", POSIXct.out=TRUE)[,2]
+# VNPmNspr$sunup <- sunriset(VNPloc, VNPmNspr$EndTimeL, direction="sunrise", POSIXct.out=TRUE)[,2]
+# dawn <- crepuscule(VNPloc, VNPmNspr$EndTimeL,solarDep=12, direction="dawn", POSIXct.out=TRUE)
+# head(dawn)
+
 VNPmNspr$burstID<-droplevels(VNPmNspr$burstID)
 VNPmNsum$burstID<-droplevels(VNPmNsum$burstID)
 VNPmNwin$burstID<-droplevels(VNPmNwin$burstID)
 
 
 
-head(VNPmN)
-VNPmNsprtrajINT <- as.ltraj(xy = VNPmNspr[,c("X","Y")], date = VNPmNspr$EndTimeL, id = VNPmNspr$burstID)
+
+head(VNPmNspr)
+VNPmNsprtrajINT <- as.ltraj(xy = VNPmNspr[,c("X","Y")], date = VNPmNspr$EndTimeL, id = VNPmNspr$burstID,infolocs = VNPmNspr)
 VNPmNsumtrajINT <- as.ltraj(xy = VNPmNsum[,c("X","Y")], date = VNPmNsum$EndTimeL, id = VNPmNsum$burstID)
 VNPmNwintrajINT <- as.ltraj(xy = VNPmNwin[,c("X","Y")], date = VNPmNwin$EndTimeL, id = VNPmNwin$burstID)
+
+
 
 ##function to identify if time lag greater than 1 day
 foo <- function(dt) {
@@ -269,6 +304,7 @@ foo <- function(dt) {
 
 VNPmNsprtrajINT2 <- cutltraj(VNPmNsprtrajINT, "foo(dt)", nextr = TRUE)
 VNPmNsprtrajINT2
+is.regular(VNPmNsprtrajINT2)
 
 VNPmNsumtrajINT2 <- cutltraj(VNPmNsumtrajINT, "foo(dt)", nextr = TRUE)
 VNPmNsumtrajINT2
@@ -276,14 +312,39 @@ VNPmNsumtrajINT2
 VNPmNwintrajINT2 <- cutltraj(VNPmNwintrajINT, "foo(dt)", nextr = TRUE)
 VNPmNwintrajINT2
 
-VNPmNsprtrajINTdf<-ld(VNPmNsprtrajINT)
+
+
+
+VNPmNwintrajINT2df<-ld(VNPmNsprtrajINT2)
+
+str(VNPmNwintrajINT2df)
+
+VNPSpr_Nightdf<-VNPmNwintrajINT2df[VNPmNwintrajINT2df$DayPeriod=="Night",]
+VNPSpr_Day<-VNPmNspr[VNPmNspr$DayPeriod=="Day",]
+VNPSpr_Crep<-VNPmNspr[VNPmNspr$DayPeriod=="Crepuscular",]
+
+
+
+VNPmNsprtrajINT3_night <- as.ltraj(xy = VNPSpr_Nightdf[,c("X","Y")], date = VNPSpr_Nightdf$EndTimeL, id = VNPSpr_Nightdf$burstID)
+
+
+
+
+
+####ability to subsample
+str(VNPmNwintrajINT2)
+#test<-VNPmNwintrajINT2[id="1_101216.1"]
+#subsample at 1 hour
+VNPmNwintrajINT2_1hr<-redisltraj(VNPmNwintrajINT2, 3600,type = c("time"))
+
+VNPmNwintrajINTdf<-ld(VNPmNsumtrajINT2)
 str(VNPmNsprtrajINTdf)
 
 VNPmNsprtrajINT2 
-is.regular(VNPmNwintrajINT2)
+is.regular(VNPmNsumtrajINT2)
 plot(VNPmNsumtrajINT[48])
 str(VNPmNltrajINT)
-VNPmNwintrajINT2df<-ld(VNPmNwintrajINT2)
+VNPmNwintrajINT2df<-ld(VNPmNsumtrajINT2)
 str(VNPmNwintrajINT2df)
 
 
@@ -293,81 +354,97 @@ winbursts<-unique(VNPmNwintrajINT2df$burst)
 
 
 
-WINfpt<-fpt(VNPmNwintrajINT2,  seq(10,500, length=49), units = c( "hours"))
+WINfpt<-fpt(VNPmNsumtrajINT2,  seq(15,500, length=80), units = c( "hours"))
 
 
 
 varoutWIN<-varlogfpt(WINfpt, graph = FALSE)
+meanoutWIN<-meanfpt(WINfpt, graph = FALSE)
 str(varoutWIN)
-plot(varoutWIN$r30)
+str(meanoutWIN)
+
+plot(varoutWIN$r5)
 names(varoutWIN)
 varoutWINdf<-data.frame(varoutWIN)
+meanoutWINdf<-data.frame(meanoutWIN)
 head(varoutWINdf)
 str(varoutWINdf)
 
 varoutWINdf2<-cbind(winbursts,totlocs,varoutWINdf)
+meanoutWINdf2<-cbind(winbursts,totlocs,meanoutWINdf)
 head(varoutWINdf2)
 
 #remove bursts with less than 360 aka 5 days
-((5*24)*60)/20
-varoutWINdf3<-varoutWINdf2[varoutWINdf2$x>=500,]
+((5*24)*60)/20   --- 20 min data
+((5*24)*60)/60   --- 120 hourly data
+
+varoutWINdf3<-varoutWINdf2[varoutWINdf2$x>=120,]
+meanoutWINdf3<-meanoutWINdf2[meanoutWINdf2$x>=120,]
 names(varoutWINdf3)
 
 str(varoutWINdf3)
-Winmeans<-aggregate(varoutWINdf3[,4:ncol(varoutWINdf3)],by=list(varoutWINdf3$winbursts), mean)
+WinVARmeans<-aggregate(varoutWINdf3[,4:ncol(varoutWINdf3)],by=list(varoutWINdf3$winbursts), mean)
+WinMEANmeans<-aggregate(meanoutWINdf3[,4:ncol(meanoutWINdf3)],by=list(meanoutWINdf3$winbursts), mean)
+
 nobs<-varoutWINdf3[,3]
 str(nobs)
 head(Winmeans)
 str(Winmeans)
 unique(Winmeans$Group.1)
-WinmeansN<-cbind(Winmeans,nobs)
-head(WinmeansN)
+WinVARmeansN<-cbind(WinVARmeans,nobs)
+WinMEANmeansN<-cbind(WinMEANmeans,nobs)
+
+head(WinVARmeansN)
 
 
 ###get the weighted mean by individual ID-collar
 
-WinmeansN$IDcollar<-substr(WinmeansN$Group.1,1,9)
-WinmeansN$ID<-substr(WinmeansN$Group.1,1,2)
-WinmeansN$ID<-as.factor(WinmeansN$ID)
+WinVARmeansN$IDcollar<-substr(WinVARmeansN$Group.1,1,9)
+WinVARmeansN$ID<-substr(WinVARmeansN$Group.1,1,2)
+WinVARmeansN$ID<-as.factor(WinVARmeansN$ID)
+
+WinMEANmeansN$IDcollar<-substr(WinMEANmeansN$Group.1,1,9)
+WinMEANmeansN$ID<-substr(WinMEANmeansN$Group.1,1,2)
+WinMEANmeansN$ID<-as.factor(WinMEANmeansN$ID)
+
 unique(WinmeansN$ID)
-WinmeansN$ID<-as.factor(WinmeansN$IDcollar)
+WinVARmeansN$ID<-as.factor(WinVARmeansN$IDcollar)
+WinMEANmeansN$ID<-as.factor(WinMEANmeansN$IDcollar)
 unique(WinmeansN$IDcollar)
 
 library(data.table)
 
-dt <- as.data.table(WinmeansN)
+dt <- as.data.table(WinVARmeansN)
 head(dt)
 names(dt)
 str(dt)
-colsToKeep = c(names(WinmeansN[,2:51]))
+colsToKeep = c(names(WinVARmeansN[,2:82]))
 
 
 dt2 <- dt[,lapply(.SD,weighted.mean,w=nobs), 
           by = list(IDcollar), .SDcols = colsToKeep]
 
 dfWinID<-data.frame(dt2)
+str(dfWinID)
 head(dfWinID)
 unique(dfWinID$IDcollar)
 names(dfWinID)
 
-
-
-
-head(dfWinID)
-
 dfWinID$one<-"1"
 names(dfWinID)
-plot(colMeans(dfWinID[,2:50],na.rm = TRUE))
+plot(colMeans(dfWinID[,2:81],na.rm = TRUE))
 
 names(dfWinID)
-mean<-aggregate(dfWinID[,2:50], FUN=mean,by=list(dfWinID$one),na.rm=TRUE)
-stdev<-aggregate(dfWinID[,2:50], FUN=sd,by=list(dfWinID$one),na.rm=TRUE)
-num<-with(dfWinID, aggregate(dfWinID[,2:50], list(one), FUN = function(x) length(x)))
+hist(dfWinID$r10[2:81])
+?hist
+mean<-aggregate(dfWinID[,2:81], FUN=mean,by=list(dfWinID$one),na.rm=TRUE)
+stdev<-aggregate(dfWinID[,2:81], FUN=sd,by=list(dfWinID$one),na.rm=TRUE)
+num<-with(dfWinID, aggregate(dfWinID[,2:81], list(one), FUN = function(x) length(x)))
 
 names(mean)
 str(mean)
 
-meanSDn<-rbind(mean[,2:50],stdev[,2:50],num[,2:50])
+meanSDn<-rbind(mean[,2:81],stdev[,2:81],num[,2:81])
 meanSDnt<-t(meanSDn)
 head(meanSDnt)
 colnames(meanSDnt)<-c("mean","sd","n")
@@ -380,14 +457,15 @@ meanSDntR<-cbind(meanSDnt,radii)
 head(meanSDntR)
 meanSDntR$UPCI<-meanSDntR$mean+(1.96*(meanSDntR$sd/sqrt(meanSDntR$n)))
 meanSDntR$LOCI<-meanSDntR$mean-(1.96*(meanSDntR$sd/sqrt(meanSDntR$n)))  
-  
+meanSDntR$radii2<-round(meanSDntR$radii,2)
 
-plot(meanSDntR$radii2,meanSDntR$mean,ylim=c(0.4,1))
+plot(meanSDntR$radii2,meanSDntR$mean,ylim=c(0.6,1.2))
 lines(meanSDntR$radii2,meanSDntR$mean)
 lines(meanSDntR$radii2,meanSDntR$UPCI,col="red")
 lines(meanSDntR$radii2,meanSDntR$LOCI,col="red")
 
-meanSDntR$radii2<-round(meanSDntR$radii,2)
+
+
 text(meanSDntR$radii2,meanSDntR$LOCI,labels=meanSDntR$radii2)
 ?text
 
