@@ -320,13 +320,14 @@ VNPmNwintrajINT2df<-ld(VNPmNsprtrajINT2)
 str(VNPmNwintrajINT2df)
 
 VNPSpr_Nightdf<-VNPmNwintrajINT2df[VNPmNwintrajINT2df$DayPeriod=="Night",]
-VNPSpr_Day<-VNPmNspr[VNPmNspr$DayPeriod=="Day",]
-VNPSpr_Crep<-VNPmNspr[VNPmNspr$DayPeriod=="Crepuscular",]
+VNPSpr_Daydf<-VNPmNwintrajINT2df[VNPmNwintrajINT2df$DayPeriod=="Day",]
+VNPSpr_Crepdf<-VNPmNwintrajINT2df[VNPmNwintrajINT2df$DayPeriod=="Crepuscular",]
 
 
 
-VNPmNsprtrajINT3_night <- as.ltraj(xy = VNPSpr_Nightdf[,c("X","Y")], date = VNPSpr_Nightdf$EndTimeL, id = VNPSpr_Nightdf$burstID)
-
+VNPmNsprtrajINT3_night <- as.ltraj(xy = VNPSpr_Nightdf[,c("X","Y")], date = VNPSpr_Nightdf$EndTimeL, id = VNPSpr_Nightdf$burstID,infolocs = VNPSpr_Nightdf)
+VNPmNsprtrajINT3_day <- as.ltraj(xy = VNPSpr_Daydf[,c("X","Y")], date = VNPSpr_Daydf$EndTimeL, id = VNPSpr_Daydf$burstID,infolocs = VNPSpr_Daydf)
+str(VNPSpr_Daydf)
 
 
 
@@ -344,7 +345,7 @@ VNPmNsprtrajINT2
 is.regular(VNPmNsumtrajINT2)
 plot(VNPmNsumtrajINT[48])
 str(VNPmNltrajINT)
-VNPmNwintrajINT2df<-ld(VNPmNsumtrajINT2)
+VNPmNwintrajINT2df<-ld(VNPmNsprtrajINT3_night)
 str(VNPmNwintrajINT2df)
 
 
@@ -354,7 +355,7 @@ winbursts<-unique(VNPmNwintrajINT2df$burst)
 
 
 
-WINfpt<-fpt(VNPmNsumtrajINT2,  seq(15,500, length=80), units = c( "hours"))
+WINfpt<-fpt(VNPmNsprtrajINT3_night,  seq(15,500, length=80), units = c( "hours"))
 
 
 
