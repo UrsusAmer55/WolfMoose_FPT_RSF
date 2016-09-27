@@ -242,8 +242,23 @@ VNPmN$Y<-VNPmN$Y.ENDloc #change names of coords
 saveRDS(VNPmN,"E:/Moose/FPT/DataProc/VNPmN_091916.R")
 VNPmN<-readRDS("E:/Moose/FPT/DataProc/VNPmN_091916.R")
 
+unique(VNPmN$dT)
 
 
+VNPmN$EndTimeUTC<-format(VNPmN$EndTimeL, tz="GMT",usetz=TRUE)
+VNPmN$EndTimeUTC<-as.POSIXct(VNPmN$EndTimeUTC)
+
+#LOCS <- matrix(c(VNPmN$,48.5000), nrow=1)
+
+VNPloc <- matrix(c(-92.8823,48.5000), nrow=1)
+VNPmN$sunpos<-solarpos(VNPloc,VNPmN$EndTimeL)[,2]
+
+#https://www.timeanddate.com/astronomy/different-types-twilight.html
+
+VNPmN$DayPeriod<-NA
+VNPmN$DayPeriod[VNPmN$sunpos<12&VNPmN$sunpos>-12]<-"Crepuscular"
+VNPmN$DayPeriod[VNPmN$sunpos>=12]<-"Day"
+VNPmN$DayPeriod[VNPmN$sunpos<=-12]<-"Night"
 
 VNPmN$month<-format(VNPmN$EndTimeL,"%m")
 VNPmN$month<-as.numeric(VNPmN$month)
@@ -256,20 +271,6 @@ VNPmNspr<-VNPmN[VNPmN$season=="Spring",]
 VNPmNsum<-VNPmN[VNPmN$season=="Summer",]
 VNPmNwin<-VNPmN[VNPmN$season=="Winter",]
 
-VNPmNspr$EndTimeUTC<-format(VNPmNspr$EndTimeL, tz="GMT",usetz=TRUE)
-VNPmNspr$EndTimeUTC<-as.POSIXct(VNPmNspr$EndTimeUTC)
-
-#LOCS <- matrix(c(VNPmNspr$,48.5000), nrow=1)
-
-VNPloc <- matrix(c(-92.8823,48.5000), nrow=1)
-VNPmNspr$sunpos<-solarpos(VNPloc,VNPmNspr$EndTimeL)[,2]
-
-#https://www.timeanddate.com/astronomy/different-types-twilight.html
-
-VNPmNspr$DayPeriod<-NA
-VNPmNspr$DayPeriod[VNPmNspr$sunpos<12&VNPmNspr$sunpos>-12]<-"Crepuscular"
-VNPmNspr$DayPeriod[VNPmNspr$sunpos>=12]<-"Day"
-VNPmNspr$DayPeriod[VNPmNspr$sunpos<=-12]<-"Night"
 
 table(VNPmNspr$DayPeriod)
 
@@ -292,8 +293,8 @@ VNPmNwin$burstID<-droplevels(VNPmNwin$burstID)
 
 head(VNPmNspr)
 VNPmNsprtrajINT <- as.ltraj(xy = VNPmNspr[,c("X","Y")], date = VNPmNspr$EndTimeL, id = VNPmNspr$burstID,infolocs = VNPmNspr)
-VNPmNsumtrajINT <- as.ltraj(xy = VNPmNsum[,c("X","Y")], date = VNPmNsum$EndTimeL, id = VNPmNsum$burstID)
-VNPmNwintrajINT <- as.ltraj(xy = VNPmNwin[,c("X","Y")], date = VNPmNwin$EndTimeL, id = VNPmNwin$burstID)
+VNPmNsumtrajINT <- as.ltraj(xy = VNPmNsum[,c("X","Y")], date = VNPmNsum$EndTimeL, id = VNPmNsum$burstID,infolocs = VNPmNsum)
+VNPmNwintrajINT <- as.ltraj(xy = VNPmNwin[,c("X","Y")], date = VNPmNwin$EndTimeL, id = VNPmNwin$burstID,infolocs = VNPmNwin)
 
 
 
@@ -315,7 +316,7 @@ VNPmNwintrajINT2
 
 
 
-VNPmNwintrajINT2df<-ld(VNPmNsprtrajINT2)
+VNPmNwintrajINT2df<-ld(VNPmNsumtrajINT2)
 
 str(VNPmNwintrajINT2df)
 
@@ -323,10 +324,25 @@ VNPSpr_Nightdf<-VNPmNwintrajINT2df[VNPmNwintrajINT2df$DayPeriod=="Night",]
 VNPSpr_Daydf<-VNPmNwintrajINT2df[VNPmNwintrajINT2df$DayPeriod=="Day",]
 VNPSpr_Crepdf<-VNPmNwintrajINT2df[VNPmNwintrajINT2df$DayPeriod=="Crepuscular",]
 
+VNPSum_Nightdf<-VNPmNwintrajINT2df[VNPmNwintrajINT2df$DayPeriod=="Night",]
+VNPSum_Daydf<-VNPmNwintrajINT2df[VNPmNwintrajINT2df$DayPeriod=="Day",]
+VNPSum_Crepdf<-VNPmNwintrajINT2df[VNPmNwintrajINT2df$DayPeriod=="Crepuscular",]
+
+
+
+
 
 
 VNPmNsprtrajINT3_night <- as.ltraj(xy = VNPSpr_Nightdf[,c("X","Y")], date = VNPSpr_Nightdf$EndTimeL, id = VNPSpr_Nightdf$burstID,infolocs = VNPSpr_Nightdf)
 VNPmNsprtrajINT3_day <- as.ltraj(xy = VNPSpr_Daydf[,c("X","Y")], date = VNPSpr_Daydf$EndTimeL, id = VNPSpr_Daydf$burstID,infolocs = VNPSpr_Daydf)
+VNPmNsprtrajINT3_crep <- as.ltraj(xy = VNPSpr_Crepdf[,c("X","Y")], date = VNPSpr_Crepdf$EndTimeL, id = VNPSpr_Crepdf$burstID,infolocs = VNPSpr_Crepdf)
+
+VNPmNsumtrajINT3_night <- as.ltraj(xy = VNPSum_Nightdf[,c("X","Y")], date = VNPSum_Nightdf$EndTimeL, id = VNPSum_Nightdf$burstID,infolocs = VNPSum_Nightdf)
+VNPmNsumtrajINT3_day <- as.ltraj(xy = VNPSum_Daydf[,c("X","Y")], date = VNPSum_Daydf$EndTimeL, id = VNPSum_Daydf$burstID,infolocs = VNPSum_Daydf)
+VNPmNsumtrajINT3_crep <- as.ltraj(xy = VNPSum_Crepdf[,c("X","Y")], date = VNPSum_Crepdf$EndTimeL, id = VNPSum_Crepdf$burstID,infolocs = VNPSum_Crepdf)
+
+
+
 str(VNPSpr_Daydf)
 
 
@@ -345,7 +361,7 @@ VNPmNsprtrajINT2
 is.regular(VNPmNsumtrajINT2)
 plot(VNPmNsumtrajINT[48])
 str(VNPmNltrajINT)
-VNPmNwintrajINT2df<-ld(VNPmNsprtrajINT3_night)
+VNPmNwintrajINT2df<-ld(VNPmNsumtrajINT3_crep)
 str(VNPmNwintrajINT2df)
 
 
@@ -355,7 +371,7 @@ winbursts<-unique(VNPmNwintrajINT2df$burst)
 
 
 
-WINfpt<-fpt(VNPmNsprtrajINT3_night,  seq(15,500, length=80), units = c( "hours"))
+WINfpt<-fpt(VNPmNsumtrajINT3_crep,  seq(15,500, length=80), units = c( "hours"))
 
 
 
@@ -460,11 +476,13 @@ meanSDntR$UPCI<-meanSDntR$mean+(1.96*(meanSDntR$sd/sqrt(meanSDntR$n)))
 meanSDntR$LOCI<-meanSDntR$mean-(1.96*(meanSDntR$sd/sqrt(meanSDntR$n)))  
 meanSDntR$radii2<-round(meanSDntR$radii,2)
 
-plot(meanSDntR$radii2,meanSDntR$mean,ylim=c(0.6,1.2))
+plot(meanSDntR$radii2,meanSDntR$mean,ylim=c(0.6,1.4))
 lines(meanSDntR$radii2,meanSDntR$mean)
 lines(meanSDntR$radii2,meanSDntR$UPCI,col="red")
 lines(meanSDntR$radii2,meanSDntR$LOCI,col="red")
 
+
+saveRDS(meanSDntR,"C:/Users/ditme004/Dropbox/Moose_Manu_Code/NE_VNP/WolfMoose_FPT_RSF/VarEstFPTRadiiMoose/meanSDntR_summerCrep_20min.R")
 
 
 text(meanSDntR$radii2,meanSDntR$LOCI,labels=meanSDntR$radii2)
