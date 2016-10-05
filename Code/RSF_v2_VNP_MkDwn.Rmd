@@ -198,6 +198,7 @@ Create periods of day at VNP based on time stamp
 ```{r }
 str(Wolf1215c_4hr)
 #UTC time - dtPm is local
+
 Wolf1215c_4hr$EndTimeUTC<-format(Wolf1215c_4hr$dtPm, tz="GMT",usetz=TRUE)
 
 VNPloc <- matrix(c(-92.8823,48.5000), nrow=1)
@@ -273,22 +274,26 @@ summary(move2)
 
 Here we select a pack-season-TOD and make them the "used" points
 ```{r cache=TRUE}
+
+# saveRDS(Wolf1215c_4hr,"E:/Moose/FPT/DataProc/Wolf_RSF_100516.R")
+# Wolf1215c_4hr<-readRDS("E:/Moose/FPT/DataProc/Wolf_RSF_100516.R")
+
+
 table(Wolf1215c_4hr$packIDseasTOD)
-use<-Wolf1215c_4hr[Wolf1215c_4hr$packIDseasTOD=="V008_Summer_Day" ,] # sp class
+use<-Wolf1215c_4hr[Wolf1215c_4hr$packIDseasTOD=="V008_Winter_Night" ,] # sp class
 str(use)
 
 use<-SpatialPoints(use[c("X","Y")])
 plot(use)
 str(use)
-nuse<-nrow(use@coords)
-nuse
+
 ```
 Generate some random points from within the `area used by the pack-season
 One option is to use an overly smoothed KDE of the UD (e.g., using KDE with h = href) to define availability
 
 ```{r cache=TRUE}
 # UD estimate from entire season
-HR<-Wolf1215c_4hr[Wolf1215c_4hr$packIDseas=="V008_Summer" ,] # sp class
+HR<-Wolf1215c_4hr[Wolf1215c_4hr$packIDseas=="V008_Winter" ,] # sp class
 HR<-SpatialPoints(HR[c("X","Y")])
 UD.apollo<-kernelUD(HR, h="href")
 image(UD.apollo)
@@ -299,6 +304,25 @@ plot(ver)
 points(use) 
 ```
  
+Drop used points that fall outside off the 95% KDE. 
+You need as many "point.in.polygon" funcs as their are unique polygons in home range
+
+```{r }
+kdecontour1<-ver@polygons[[1]]@Polygons[[1]]@coords
+kdecontour2<-ver@polygons[[1]]@Polygons[[2]]@coords
+#kdecontourA<-rbind(kdecontour1,kdecontour2)
+
+
+inkde1<-point.in.polygon(use@coords[,1],use@coords[,2], kdecontour1[,1], kdecontour1[,2])
+inkde2<-point.in.polygon(use@coords[,1],use@coords[,2], kdecontour2[,1], kdecontour2[,2])
+
+use<-use[inkde1==1|inkde2==1,]
+
+nuse<-nrow(use@coords)
+nuse
+
+```
+
 Generate random points using the csr function in splancs library, but it would be 'best' to generate points on a uniform grid.
 ```{r }
 nav<-1 # number of availble points per used point
@@ -308,14 +332,6 @@ avail<-spsample(ver, n=navail, 'regular')
 plot(ver)
 points(avail, col="red")
 points(use)
-```
-
-Drop used points that fall outside off the 95% KDE. 
-
-```{r }
-kdecontour<-ver@polygons[[1]]@Polygons[[1]]@coords
-inkde<-point.in.polygon(use@coords[,1],use@coords[,2], kdecontour[,1], kdecontour[,2])
-use<-use[inkde==1,]
 ```
 
 Read in NLCD (Veg), distance to snowmobile trail, distance to nearest pond/lake 
@@ -347,10 +363,15 @@ used<-data.frame(use)
 used$veg<-extract(vegR, used[,1:2])
 used$lakedist<-extract(lake30, used[,1:2])
 used$lakepnddist<-extract(lakepnd30, used[,1:2])
-
-
 used$distsnowmob<-nncross(used, snowmob.psp)$dist 
-#use<-used
+
+####Combine very similar/seldom used habitat values (Herbaceous and Emergenent...)
+
+Wolf1215c_4hr<-subset(Wolf1215c_4hr, select=-c(XY))
+
+used_SP<-SpatialPointsDataFrame(coords=Wolf1215c_4hr[c("X","Y")],proj4string= CRS("+proj=utm +zone=15 ellps=WGS84"),data=Wolf1215c_4hr)
+
+writeOGR(used_SP,dsn="E:/Moose/Data/Voyageurs_National_Park/WolfTests_092816",layer="Wolf_RSF_100516",driver="ESRI Shapefile")
 
 ```
  
@@ -359,7 +380,7 @@ Create the response (y = 0 for available, 1 for used points).
 ```{r }
 avails$y<-0 # response
 # used<-use
-used<-used[inkde==1,]
+used<-used[inkde1==1|inkde2==1,]
 used$y<-1
 colnames(used)[1]<-"LONG_X"    
 colnames(used)[2]<-"LAT_Y"    
@@ -378,12 +399,20 @@ alldat<-rbind(used,avails)
 alldat$wt<-1
 alldat$wt[alldat$y==0]<-10000
 unique(alldat$y)
+table(alldat$y)
 ```
 
 Create an offset = log(area/$n_a$) so that the intercept in the logistic regression models is comparable to that
 of the point process model
 ```{r cache=TRUE}
+
+g1<-kdecontour1
+g2<-kdecontour2
+
+kdecontour<-rbind(g1,g2)
+
 kde.owin<-owin(poly=list(x=rev(kdecontour[duplicated(kdecontour)!=T,1]), y=rev(kdecontour[duplicated(kdecontour)!=T,2])))
+
 hrarea<-area.owin(kde.owin)
 alldat$off<-log(hrarea/navail)
 ```
@@ -414,9 +443,15 @@ plot(vegtab)
 nlcdtab[1:2]
 ```
 # Fit logistic regression models with and without weights  
+Changed the reference level from "Open water" to "Mixed Forest"
 
 ```{r }
 names(alldat)
+
+alldat$veg<-as.factor(alldat$veg)
+alldat$veg <- relevel(alldat$veg, ref = "43")
+
+
 fit1<-glm(y~lakepnddist+distsnowmob+as.factor(veg)+offset(off), data=alldat, family=binomial())
 summary(fit1)
 
@@ -426,13 +461,13 @@ summary(fit1w)
 # Fit ppp model using the same use and availability points
 
 ```{r }
-used.ppp<-ppp(used[,1], used[,2],window=as.owin(kde.owin))
-Q <- quadscheme(data=used.ppp, dummy=list(x=avails[,1], y=avails[,2]))
-df <- data.frame(lakepnddist=c(used$lakepnddist, avails$lakepnddist), veg=c(used$veg, avails$veg),
-                 distsnowmob=c(used$distsnowmob, avails$distsnowmob))
-
-ppfit<- ppm(Q, ~ distsnowmob+lakepnddist+as.factor(veg), Poisson(), covariates=df)
-summary(ppfit)
+# used.ppp<-ppp(used[,1], used[,2],window=as.owin(kde.owin))
+# Q <- quadscheme(data=used.ppp, dummy=list(x=avails[,1], y=avails[,2]))
+# df <- data.frame(lakepnddist=c(used$lakepnddist, avails$lakepnddist), veg=c(used$veg, avails$veg),
+#                  distsnowmob=c(used$distsnowmob, avails$distsnowmob))
+# 
+# ppfit<- ppm(Q, ~ distsnowmob+lakepnddist+as.factor(veg), Poisson(), covariates=df)
+# summary(ppfit)
 ```
 Lastly, rsf fit from Lele & Keim 
 
@@ -442,7 +477,7 @@ rsffit<-rsf(y~distsnowmob+lakepnddist+as.factor(veg)+offset(off), data=alldat, m
 summary(rsffit)
 nlcdtab[1:2]
 unique(alldat$veg)
-
+table(alldat$veg)
 
 # coef(rsffit)
 # rsffit$std.error[1]
@@ -453,8 +488,10 @@ unique(alldat$veg)
 # Now, compare the coefficients from the different fitted models
 
 ```{r }
-coefs<-cbind(coef(fit1), coef(fit1w), coef(ppfit), c(NA,coef(rsffit)))
-colnames(coefs)<-c("LR no wts", "LR wt", "PPM", "rsf") 
+coefs<-cbind(coef(fit1), coef(fit1w), c(NA,coef(rsffit)))
+#removed coef(ppfit)
+colnames(coefs)<-c("LR no wts", "LR wt", "rsf") 
+#removed "PPM"
 rownames(coefs)<-names(coef(fit1))             
 outcoefs<-print(format(coefs,digits=3, scientific=T), quote=F)
 
