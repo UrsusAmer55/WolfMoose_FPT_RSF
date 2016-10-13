@@ -276,11 +276,14 @@ Here we select a pack-season-TOD and make them the "used" points
 ```{r cache=TRUE}
 
 # saveRDS(Wolf1215c_4hr,"E:/Moose/FPT/DataProc/Wolf_RSF_100516.R")
-# Wolf1215c_4hr<-readRDS("E:/Moose/FPT/DataProc/Wolf_RSF_100516.R")
+ Wolf1215c_4hr<-readRDS("E:/Moose/FPT/DataProc/Wolf_RSF_100516.R")
 
 
 table(Wolf1215c_4hr$packIDseasTOD)
 use<-Wolf1215c_4hr[Wolf1215c_4hr$packIDseasTOD=="V008_Winter_Night" ,] # sp class
+
+filename<-unique(use$packIDseasTOD)
+
 str(use)
 
 use<-SpatialPoints(use[c("X","Y")])
@@ -341,9 +344,9 @@ We need to extract covariate values for all of the available and used  points
 avail<-avail@coords
 avails<-data.frame(LONG_X=avail[,1], LAT_Y=avail[,2]) 
 
-# vegR<-raster("E:/Moose/Data/OutsideSpatial/NLCD11VNPclip1.tif") #raster: NLCD habitat
-# nlcdtab<-read.csv("E:/Moose/Data/OutsideSpatial/NLCD11_Table.csv",header=TRUE) #table so you can see what raster value = #list of hab class
-# #nlcdtab[1:2]
+vegR<-raster("E:/Moose/Data/OutsideSpatial/NLCD11VNPclip1.tif") #raster: NLCD habitat
+nlcdtab<-read.csv("E:/Moose/Data/OutsideSpatial/NLCD11_Table.csv",header=TRUE) #table so you can see what raster value = #list of hab class
+nlcdtab[1:2]
 # 
 # lake30<-raster("E:/Moose/Data/Voyageurs_National_Park/lakedist30")
 # lakepnd30<-raster("E:/Moose/Data/Voyageurs_National_Park/lakepnddist30")
@@ -351,27 +354,61 @@ avails<-data.frame(LONG_X=avail[,1], LAT_Y=avail[,2])
 # #convert snowmob to useable psp
 # snowmob.psp = as.psp(snowmob)
 
+####distance to water body, at least .5HA for larger region - use this one!
+waterboddist<-raster("E:/Moose/Data/OutsideSpatial/All_MN_Water/distwat_5ha2")
+
+##snowmobile trails
+snowmob<-readOGR("E:/Moose/Data/OutsideSpatial/NewSteveSnowmobileVNP",layer="All_DNR_VNPtrails") #shapfefiles: snowmobile trails
+snowmob.psp = as.psp(snowmob)
+
+
+##roads
+roads<-readOGR("E:/Moose/Data/OutsideSpatial/Roads/Koochiching",layer="Koochiching_Roads")
+roads.psp = as.psp(roads)
+
+##trails
+trails<-readOGR("E:/Moose/Data/OutsideSpatial/Trails",layer="state_park_trails_roads_VNPclip")
+trails.psp = as.psp(trails)
+
+
+
 #extract the data from the spatial layers - avail
 avails$veg<-extract(vegR, avails[,1:2])
-avails$lakedist<-extract(lake30, avails[,1:2])
-avails$lakepnddist<-extract(lakepnd30, avails[,1:2])
+# avails$lakedist<-extract(lake30, avails[,1:2])
+# avails$lakepnddist<-extract(lakepnd30, avails[,1:2])
+avails$waterboddist<-extract(waterboddist, avails[,1:2])
+avails$waterboddist[is.na(avails$waterboddist)] <- 0
+
 
 avails$distsnowmob<-nncross(avail, snowmob.psp)$dist 
-
+avails$distroad<-nncross(avail, roads.psp)$dist 
+avails$disttrail<-nncross(avails, trails.psp)$dist 
 #extract the data from the spatial layers - used
 used<-data.frame(use)
 used$veg<-extract(vegR, used[,1:2])
-used$lakedist<-extract(lake30, used[,1:2])
-used$lakepnddist<-extract(lakepnd30, used[,1:2])
+# used$lakedist<-extract(lake30, used[,1:2])
+# used$lakepnddist<-extract(lakepnd30, used[,1:2])
+used$waterboddist<-extract(waterboddist, used[,1:2])
+used$waterboddist[is.na(used$waterboddist)] <- 0
+
+used$distroad<-nncross(used, roads.psp)$dist 
 used$distsnowmob<-nncross(used, snowmob.psp)$dist 
+used$disttrail<-nncross(used, trails.psp)$dist 
+
+# Find the min. distance to linear feature (road,snowmob,trail)
+used$distlinear <- ifelse(used$distroad > used$distsnowmob, used$distsnowmob,used$distroad)
+used$distlinear2 <- ifelse(used$distlinear > used$disttrail, used$disttrail,used$distlinear)
+
+avails$distlinear <- ifelse(avails$distroad > avails$distsnowmob,avails$distsnowmob,avails$distroad)
+avails$distlinear2 <- ifelse(avails$distlinear > avails$disttrail, avails$disttrail,avails$distlinear)
 
 ####Combine very similar/seldom used habitat values (Herbaceous and Emergenent...)
 
-Wolf1215c_4hr<-subset(Wolf1215c_4hr, select=-c(XY))
-
-used_SP<-SpatialPointsDataFrame(coords=Wolf1215c_4hr[c("X","Y")],proj4string= CRS("+proj=utm +zone=15 ellps=WGS84"),data=Wolf1215c_4hr)
-
-writeOGR(used_SP,dsn="E:/Moose/Data/Voyageurs_National_Park/WolfTests_092816",layer="Wolf_RSF_100516",driver="ESRI Shapefile")
+# Wolf1215c_4hr<-subset(Wolf1215c_4hr, select=-c(XY))
+# 
+# used_SP<-SpatialPointsDataFrame(coords=Wolf1215c_4hr[c("X","Y")],proj4string= CRS("+proj=utm +zone=15 ellps=WGS84"),data=Wolf1215c_4hr)
+# 
+# writeOGR(used_SP,dsn="E:/Moose/Data/Voyageurs_National_Park/WolfTests_092816",layer="Wolf_RSF_100516",driver="ESRI Shapefile")
 
 ```
  
@@ -421,9 +458,9 @@ Plots to look at distribution of covariates at used and available locations.
 ```{r fig.height=10, fig.width=10}
 ```{r cache=TRUE}
 par(mfrow=c(2,2))
-uriv<-bkde(used$lakepnddist, range.x=c(0,20000), gridsize=1000)
-ariv<-bkde(avails$lakepnddist, range.x=c(0,20000), gridsize=1000)
-plot(uriv, type="l", xlab="Distrince to nearest lake/pond", ylab="Density")
+uriv<-bkde(used$waterboddist, range.x=c(0,20000), gridsize=1000)
+ariv<-bkde(avails$waterboddist, range.x=c(0,20000), gridsize=1000)
+plot(uriv, type="l", xlab="Distrince to nearest waterbody over .5ha", ylab="Density")
 lines(ariv, lty=2)
 legend("topright", lty=c(1,2), bty="n", c("Used","Available"))
 uroad<-bkde(used$distsnowmob, range.x=c(0,5000), gridsize=500)
@@ -432,6 +469,19 @@ plot(uroad, type="l", xlab="Distrince to snowmob trail", ylab="Density")
 lines(aroad, lty=2)
 plot(uriv$x, uriv$y/ariv$y, type="l", xlab="Distance to lake/pond", ylab="Use/Avail")
 plot(uroad$x, uroad$y/aroad$y, type="l", xlab="Distance to nearest snowmob trail", ylab="Use/Avail")
+
+
+
+
+par(mfrow=c(1,1))
+uriv<-bkde(used$distlinear2, range.x=c(0,20000), gridsize=1000)
+ariv<-bkde(avails$distlinear2, range.x=c(0,20000), gridsize=1000)
+plot(uriv, type="l", xlab="Distrince to nearest linear feature", ylab="Density")
+lines(ariv, lty=2)
+legend("topright", lty=c(1,2), bty="n", c("Used","Available"))
+
+
+
 ```
 Look at a table of categorical values
 
@@ -441,6 +491,25 @@ vegtab<-table(alldat$y, alldat$veg)
 prop.table(vegtab,1)
 plot(vegtab)
 nlcdtab[1:2]
+
+# combine similar hab values (from first analysis and remove unclassified (aka Canada))
+
+#convert herbaceous to emergent herbaceous
+alldat$veg[alldat$veg=="71"]<- "95"
+
+#remove Canuck points
+alldat<-alldat[alldat$veg!="0",]
+
+#call all developed the same thing
+alldat$veg[alldat$veg=="21"|alldat$veg=="22"|alldat$veg=="23"|alldat$veg=="24"]<- "21"
+
+#combine hay/pasture and cultivated crops
+alldat$veg[alldat$veg=="81"]<- "82"
+
+alldat$veg<-droplevels(alldat$veg)
+
+table(alldat$veg)
+
 ```
 # Fit logistic regression models with and without weights  
 Changed the reference level from "Open water" to "Mixed Forest"
@@ -450,12 +519,12 @@ names(alldat)
 
 alldat$veg<-as.factor(alldat$veg)
 alldat$veg <- relevel(alldat$veg, ref = "43")
+head(alldat)
 
-
-fit1<-glm(y~lakepnddist+distsnowmob+as.factor(veg)+offset(off), data=alldat, family=binomial())
+fit1<-glm(y~waterboddist+distlinear2+as.factor(veg)+offset(off), data=alldat, family=binomial())
 summary(fit1)
 
-fit1w<-glm(y~lakepnddist+distsnowmob+as.factor(veg)+offset(off), weights=wt,data=alldat, family=binomial())
+fit1w<-glm(y~waterboddist+distlinear2+as.factor(veg)+offset(off), weights=wt,data=alldat, family=binomial())
 summary(fit1w)
 ```
 # Fit ppp model using the same use and availability points
@@ -473,8 +542,12 @@ Lastly, rsf fit from Lele & Keim
 
 ```{r }
 
-rsffit<-rsf(y~distsnowmob+lakepnddist+as.factor(veg)+offset(off), data=alldat, m=0)
+rsffit<-rsf(y~waterboddist+distlinear2+as.factor(veg)+offset(off), data=alldat, m=0)
 summary(rsffit)
+
+rsfout<-as.data.frame(summary(rsffit)$coefficients)
+
+
 nlcdtab[1:2]
 unique(alldat$veg)
 table(alldat$veg)
@@ -494,6 +567,16 @@ colnames(coefs)<-c("LR no wts", "LR wt", "rsf")
 #removed "PPM"
 rownames(coefs)<-names(coef(fit1))             
 outcoefs<-print(format(coefs,digits=3, scientific=T), quote=F)
+
+filename
+
+
+setwd("C:/Users/ditme004/Dropbox/Moose_Manu_Code/NE_VNP/WolfMoose_FPT_RSF/WolfRSFOut_VNP/RSFfit/")
+
+write.csv(rsfout, file=paste(filename, ".csv", sep=""))
+
+setwd("C:/Users/ditme004/Dropbox/Moose_Manu_Code/NE_VNP/WolfMoose_FPT_RSF/WolfRSFOut_VNP/AllCoefs/")
+write.csv(outcoefs, file=paste(filename, ".csv", sep=""))
 
 ```
 
