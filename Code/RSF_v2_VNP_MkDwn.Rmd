@@ -204,6 +204,10 @@ Wolf1215c_4hr$EndTimeUTC<-format(Wolf1215c_4hr$dtPm, tz="GMT",usetz=TRUE)
 VNPloc <- matrix(c(-92.8823,48.5000), nrow=1)
 Wolf1215c_4hr$sunpos<-solarpos(VNPloc,Wolf1215c_4hr$dtPm)[,2]
 
+head(Wolf1215c_4hr)
+
+library(maptools)
+
 #https://www.timeanddate.com/astronomy/different-types-twilight.html
 
 Wolf1215c_4hr$DayPeriod<-NA
@@ -211,7 +215,8 @@ Wolf1215c_4hr$DayPeriod[Wolf1215c_4hr$sunpos<12&Wolf1215c_4hr$sunpos>-12]<-"Crep
 Wolf1215c_4hr$DayPeriod[Wolf1215c_4hr$sunpos>=12]<-"Day"
 Wolf1215c_4hr$DayPeriod[Wolf1215c_4hr$sunpos<=-12]<-"Night"
 
-str(Wolf1215c_4hr)
+
+
 
 ###combine pack-season and now time of day
 Wolf1215c_4hr$packIDseasTOD<-paste(Wolf1215c_4hr$packIDseas,Wolf1215c_4hr$DayPeriod,sep="_")
@@ -276,19 +281,36 @@ Here we select a pack-season-TOD and make them the "used" points
 ```{r cache=TRUE}
 
 # saveRDS(Wolf1215c_4hr,"E:/Moose/FPT/DataProc/Wolf_RSF_100516.R")
- Wolf1215c_4hr<-readRDS("E:/Moose/FPT/DataProc/Wolf_RSF_100516.R")
+ Wolf1215c_4hr<-readRDS("F:/Moose/FPT/DataProc/Wolf_RSF_100516.R")
+
+table(Wolf1215c_4hr$season,Wolf1215c_4hr$month)
+
+movemonth<-aggregate(Wolf1215c_4hr$moverate,by=list(Wolf1215c_4hr$PACKID,Wolf1215c_4hr$month),mean)
+colnames(movemonth)<-c("pack","month","moverate")
+movemonth<-order(movemonth,by=month)
+
+movemonth<-movemonth[order(movemonth$month),]
+
+H<-ggplot(movemonth,aes(x=month,y=moverate,colour=pack))
+H+geom_point()+ylim(0,.3)
 
 
-table(Wolf1215c_4hr$packIDseasTOD)
-use<-Wolf1215c_4hr[Wolf1215c_4hr$packIDseasTOD=="V008_Winter_Night" ,] # sp class
+head(sort(Wolf1215c_4hr$Latitude))
+hist(Wolf1215c_4hr$Longitude)
+
+table(Wolf1215c_4hr$packIDseas)
+use<-Wolf1215c_4hr[Wolf1215c_4hr$packIDseas=="V008_Summer" ,] # sp class
+
+#use<-Wolf1215c_4hr[Wolf1215c_4hr$Latitude<=48.0,]
+
+#use<-Wolf1215c_4hr
 
 filename<-unique(use$packIDseasTOD)
-
-str(use)
+filename
 
 use<-SpatialPoints(use[c("X","Y")])
-plot(use)
-str(use)
+ plot(use)
+# plot(roads.psp,add=TRUE)
 
 ```
 Generate some random points from within the `area used by the pack-season
@@ -296,7 +318,7 @@ One option is to use an overly smoothed KDE of the UD (e.g., using KDE with h = 
 
 ```{r cache=TRUE}
 # UD estimate from entire season
-HR<-Wolf1215c_4hr[Wolf1215c_4hr$packIDseas=="V008_Winter" ,] # sp class
+HR<-Wolf1215c_4hr[Wolf1215c_4hr$packIDseas=="V008_Summer" ,] # sp class
 HR<-SpatialPoints(HR[c("X","Y")])
 UD.apollo<-kernelUD(HR, h="href")
 image(UD.apollo)
@@ -312,14 +334,21 @@ You need as many "point.in.polygon" funcs as their are unique polygons in home r
 
 ```{r }
 kdecontour1<-ver@polygons[[1]]@Polygons[[1]]@coords
-kdecontour2<-ver@polygons[[1]]@Polygons[[2]]@coords
-#kdecontourA<-rbind(kdecontour1,kdecontour2)
+
+ #kdecontour2<-ver@polygons[[1]]@Polygons[[2]]@coords
+ #kdecontourA<-rbind(kdecontour1,kdecontour2)
 
 
 inkde1<-point.in.polygon(use@coords[,1],use@coords[,2], kdecontour1[,1], kdecontour1[,2])
-inkde2<-point.in.polygon(use@coords[,1],use@coords[,2], kdecontour2[,1], kdecontour2[,2])
 
-use<-use[inkde1==1|inkde2==1,]
+#inkde2<-point.in.polygon(use@coords[,1],use@coords[,2], kdecontour2[,1], kdecontour2[,2])
+
+#1 polygon in HR
+use<-use[inkde1==1,]
+#2 polygons in HR
+#use<-use[inkde1==1|inkde2==1,]
+
+use@coords
 
 nuse<-nrow(use@coords)
 nuse
@@ -343,33 +372,28 @@ We need to extract covariate values for all of the available and used  points
 ```{r }
 avail<-avail@coords
 avails<-data.frame(LONG_X=avail[,1], LAT_Y=avail[,2]) 
+str(avails)
 
-vegR<-raster("E:/Moose/Data/OutsideSpatial/NLCD11VNPclip1.tif") #raster: NLCD habitat
-nlcdtab<-read.csv("E:/Moose/Data/OutsideSpatial/NLCD11_Table.csv",header=TRUE) #table so you can see what raster value = #list of hab class
-nlcdtab[1:2]
-# 
-# lake30<-raster("E:/Moose/Data/Voyageurs_National_Park/lakedist30")
-# lakepnd30<-raster("E:/Moose/Data/Voyageurs_National_Park/lakepnddist30")
-# snowmob<-readOGR("E:/Moose/Data/OutsideSpatial",layer="snowmobile_trails_mn_studyclip") #shapfefiles: snowmobile trails
-# #convert snowmob to useable psp
+#    vegR<-raster("F:/Moose/Data/OutsideSpatial/NLCD11VNPclip1.tif") #raster: NLCD habitat
+#  nlcdtab<-read.csv("F:/Moose/Data/OutsideSpatial/NLCD11_Table.csv",header=TRUE) #table so you can see what raster value = #list of hab class
+# nlcdtab[1:2]
+# # # # 
+# # # ####distance to water body, at least .5HA for larger region - use this one!
+#  waterboddist<-raster("F:/Moose/Data/OutsideSpatial/All_MN_Water/distwat_5ha2")
+# # # 
+# # # ##snowmobile trails
+#  snowmob<-readOGR("F:/Moose/Data/OutsideSpatial/NewSteveSnowmobileVNP",layer="All_DNR_VNPtrails") #shapfefiles: snowmobile trails
 # snowmob.psp = as.psp(snowmob)
-
-####distance to water body, at least .5HA for larger region - use this one!
-waterboddist<-raster("E:/Moose/Data/OutsideSpatial/All_MN_Water/distwat_5ha2")
-
-##snowmobile trails
-snowmob<-readOGR("E:/Moose/Data/OutsideSpatial/NewSteveSnowmobileVNP",layer="All_DNR_VNPtrails") #shapfefiles: snowmobile trails
-snowmob.psp = as.psp(snowmob)
-
-
-##roads
-roads<-readOGR("E:/Moose/Data/OutsideSpatial/Roads/Koochiching",layer="Koochiching_Roads")
-roads.psp = as.psp(roads)
-
-##trails
-trails<-readOGR("E:/Moose/Data/OutsideSpatial/Trails",layer="state_park_trails_roads_VNPclip")
-trails.psp = as.psp(trails)
-
+# # # 
+# # # ##roads
+#  roads<-readOGR("F:/Moose/Data/OutsideSpatial/Roads",layer="KoochSTLmergeCLIP")
+#  roads.psp = as.psp(roads)
+# plot(roads.psp,add=TRUE)
+#  # # 
+# # # ##trails
+# trails<-readOGR("F:/Moose/Data/OutsideSpatial/Trails",layer="state_park_trails_roads_VNPclip")
+#  trails.psp = as.psp(trails)
+# 
 
 
 #extract the data from the spatial layers - avail
@@ -417,12 +441,16 @@ Create the response (y = 0 for available, 1 for used points).
 ```{r }
 avails$y<-0 # response
 # used<-use
-used<-used[inkde1==1|inkde2==1,]
+
+head(used)
+head(avails)
+#used<-used[inkde1==1|inkde2==1,]
 used$y<-1
 colnames(used)[1]<-"LONG_X"    
 colnames(used)[2]<-"LAT_Y"    
 
-used<-used[,names(avails)]  # only keep necessary columns...
+used<-used[,names(avails)]  # only keep necessary 
+
 ```
 
 ```{r cache=TRUE}
@@ -444,7 +472,10 @@ of the point process model
 ```{r cache=TRUE}
 
 g1<-kdecontour1
+
 g2<-kdecontour2
+
+kdecontour<-rbind(g1)
 
 kdecontour<-rbind(g1,g2)
 
@@ -458,13 +489,13 @@ Plots to look at distribution of covariates at used and available locations.
 ```{r fig.height=10, fig.width=10}
 ```{r cache=TRUE}
 par(mfrow=c(2,2))
-uriv<-bkde(used$waterboddist, range.x=c(0,20000), gridsize=1000)
-ariv<-bkde(avails$waterboddist, range.x=c(0,20000), gridsize=1000)
+uriv<-bkde(used$waterboddist, range.x=c(0,8000), gridsize=1000)
+ariv<-bkde(avails$waterboddist, range.x=c(0,8000), gridsize=1000)
 plot(uriv, type="l", xlab="Distrince to nearest waterbody over .5ha", ylab="Density")
 lines(ariv, lty=2)
 legend("topright", lty=c(1,2), bty="n", c("Used","Available"))
-uroad<-bkde(used$distsnowmob, range.x=c(0,5000), gridsize=500)
-aroad<-bkde(avails$distsnowmob, range.x=c(0,5000), gridsize=500)
+uroad<-bkde(used$distsnowmob, range.x=c(0,8000), gridsize=500)
+aroad<-bkde(avails$distsnowmob, range.x=c(0,8000), gridsize=500)
 plot(uroad, type="l", xlab="Distrince to snowmob trail", ylab="Density")
 lines(aroad, lty=2)
 plot(uriv$x, uriv$y/ariv$y, type="l", xlab="Distance to lake/pond", ylab="Use/Avail")
@@ -504,7 +535,9 @@ alldat<-alldat[alldat$veg!="0",]
 alldat$veg[alldat$veg=="21"|alldat$veg=="22"|alldat$veg=="23"|alldat$veg=="24"]<- "21"
 
 #combine hay/pasture and cultivated crops
-alldat$veg[alldat$veg=="81"]<- "82"
+alldat$veg[alldat$veg=="81"|alldat$veg=="31"]<- "82"
+
+alldat$veg<-as.factor(alldat$veg)
 
 alldat$veg<-droplevels(alldat$veg)
 
@@ -544,13 +577,17 @@ Lastly, rsf fit from Lele & Keim
 
 rsffit<-rsf(y~waterboddist+distlinear2+as.factor(veg)+offset(off), data=alldat, m=0)
 summary(rsffit)
-
 rsfout<-as.data.frame(summary(rsffit)$coefficients)
+
+str(rsffit)
+head(rsffit$fitted.values)
+
+#rsf.fit(rsffit,alldat)
 
 
 nlcdtab[1:2]
 unique(alldat$veg)
-table(alldat$veg)
+table(alldat$y,alldat$veg)
 
 # coef(rsffit)
 # rsffit$std.error[1]
@@ -567,16 +604,27 @@ colnames(coefs)<-c("LR no wts", "LR wt", "rsf")
 #removed "PPM"
 rownames(coefs)<-names(coef(fit1))             
 outcoefs<-print(format(coefs,digits=3, scientific=T), quote=F)
+outcoefs<-as.data.frame(outcoefs)
 
 filename
 
 
-setwd("C:/Users/ditme004/Dropbox/Moose_Manu_Code/NE_VNP/WolfMoose_FPT_RSF/WolfRSFOut_VNP/RSFfit/")
-
+setwd("C:/Users/ditme004/Dropbox/Moose_Manu_Code/NE_VNP/WolfMoose_FPT_RSF/WolfRSFOut_VNP/RSFfit_122216")
+rsfout$packidseasTODD<-filename
 write.csv(rsfout, file=paste(filename, ".csv", sep=""))
 
-setwd("C:/Users/ditme004/Dropbox/Moose_Manu_Code/NE_VNP/WolfMoose_FPT_RSF/WolfRSFOut_VNP/AllCoefs/")
+setwd("C:/Users/ditme004/Dropbox/Moose_Manu_Code/NE_VNP/WolfMoose_FPT_RSF/WolfRSFOut_VNP/AllCoefs_122216/")
+outcoefs$packidseasTODD<-filename
 write.csv(outcoefs, file=paste(filename, ".csv", sep=""))
+
+setwd("C:/Users/ditme004/Dropbox/Moose_Manu_Code/NE_VNP/WolfMoose_FPT_RSF/WolfRSFOut_VNP/AllOutData_forModels_122216/")
+alldat$packidseasTODD<-filename
+write.csv(alldat, file=paste(filename, "data.csv", sep=""))
+
+setwd("C:/Users/ditme004/Documents/RSF_Wolf_VNP_DataBackup_122216/")
+alldat$packidseasTODD<-filename
+write.csv(alldat, file=paste(filename, "data.csv", sep=""))
+
 
 ```
 
@@ -590,8 +638,370 @@ Some diagnostic plots
 # plot(te)
 ```
 
+```{r}
+#read in RSF fit data for graphing
+library(plyr)
+library(ggplot2)
+setwd("C:/Users/ditme004/Dropbox/Moose_Manu_Code/NE_VNP/WolfMoose_FPT_RSF/WolfRSFOut_VNP/RSFfit/")
+
+file_list <- list.files()
+file_list 
+dataset <- ldply(file_list, read.csv)
+head(dataset)
+unique(dataset$season)
+table(dataset$packidseasTODD)
+
+expcoefall<-dataset
+
+#separate out the packidseasTODD so can be subsetted
+
+expcoefall$pack<-substr(expcoefall$packidseasTODD, 1, 4)
+unique(expcoefall$pack)
+
+
+test<-unlist(strsplit(as.character(expcoefall$packidseasTODD), "[_]")) 
+
+expcoefall$season <- test[seq(2, length(test), 3)]
+head(expcoefall)
+unique(expcoefall$season)
+
+expcoefall$pack <- test[seq(1, length(test), 3)]
+head(expcoefall)
+unique(expcoefall$pack)
+
+expcoefall$TOD <- test[seq(3, length(test), 3)]
+head(expcoefall)
+unique(expcoefall$TOD)
+
+colnames(expcoefall)[5] <- "Pval"
+head(expcoefall)
+
+expcoefall$Signif<-NA
+expcoefall$Signif[expcoefall$Pval>.05]<-0
+expcoefall$Signif[expcoefall$Pval<=.05]<-1
+expcoefall$Signif<-as.factor(expcoefall$Signif)
+
+expcoefall$X<-gsub("as.factor(veg)","",expcoefall$X,fixed = TRUE)
+head(expcoefall$X)
+unique(expcoefall$X)
+
+#Rename hab vars
+nlcdtab[1:2]
+expcoefall$X[expcoefall$X=="11"]<-"OpenWater"
+expcoefall$X[expcoefall$X=="21"]<-"Developed"
+expcoefall$X[expcoefall$X=="41"]<-"DeciduousForest"
+expcoefall$X[expcoefall$X=="42"]<-"EvergreenForest"
+expcoefall$X[expcoefall$X=="52"]<-"Shrub/Scrub"
+expcoefall$X[expcoefall$X=="82"]<-"Agri"
+expcoefall$X[expcoefall$X=="90"]<-"WoodyWet"
+expcoefall$X[expcoefall$X=="95"]<-"HerbWet"
+
+head(expcoefall)
+
+expcoefall$seasTOD<-paste(expcoefall$X,expcoefall$season,expcoefall$TOD,sep="_")
+
+CoefSeasTod<-aggregate(expcoefall$Estimate,by=list(expcoefall$seasTOD),mean)
+
+test<-strsplit(expcoefall$CoefSeasTod, "_")
+head(test)
+
+
+#awesome way to split up based on a regular expression
+
+library(tidyr)
+head(CoefSeasTod)
+CoefSeasTod<-separate(data = CoefSeasTod, col = Group.1, into = c("Var", "Season","TOD"), sep = "\\_")
+
+head(expcoefall)
+
+write.csv(CoefSeasTod,"E:/Moose/FPT/DataProc/RSF_Predictions/CoefSeasTod.csv")
+
+#COULD RUN MIXED MODELS!
+
+# MSex<-read.csv("E:/Moose/Data/MooseDemo.csv")
+# expcoefall<-merge(expcoefall,MSex,by.x="id",by.y="Uniq_ID",all.x = TRUE)
+# 
+# MSexStat<-read.csv("E:/Moose/Data/MooseDemoIDcollarPreg.csv")
+# expcoefall<-merge(expcoefall,MSexStat,by.x="id",by.y="Idcollar")
+# head(expcoefall)
+# unique(expcoefall$SexStatus)
+# 
+# expcoefall1<-expcoefall[expcoefall$vars=="spd"|expcoefall$vars=="jul"|expcoefall$vars=="laket"|expcoefall$vars=="sunpost"|expcoefall$vars=="pcp"|expcoefall$vars=="wolft"|expcoefall$vars=="snowmobdist",]
+# expcoefall2<-expcoefall[expcoefall$vars=="Emergent Herbaceuous Wetlands"|expcoefall$vars=="temp:Emergent Herbaceuous Wetlands"|expcoefall$vars=="Evergreen Forest"|expcoefall$vars=="temp:Evergreen Forest"|expcoefall$vars=="Mixed Forest"|expcoefall$vars=="temp:Mixed Forest"|expcoefall$vars=="Open Water"|expcoefall$vars=="temp:Open Water"|expcoefall$vars=="Shrub/Scrub"|expcoefall$vars=="temp:Shrub/Scrub"|expcoefall$vars=="Woody Wetlands"|expcoefall$vars=="temp:Woody Wetlands",]
+# #unique(expcoefall$vars)
+# expcoefall2$vars <- factor(expcoefall2$vars, levels = c("Emergent Herbaceuous Wetlands","temp:Emergent Herbaceuous Wetlands", "Woody Wetlands","temp:Woody Wetlands","Open Water","temp:Open Water","Shrub/Scrub","temp:Shrub/Scrub","Mixed Forest","temp:Mixed Forest","Evergreen Forest","temp:Evergreen Forest"))
+
+
+```
+```{r}
+#graph coesfficients from RSF
+head(expcoefall)
+unique(expcoefall$TOD)
+
+backup<-expcoefall
+
+expcoefall<-expcoefall[expcoefall$Signif==1,]
+
+expcoefall1<-expcoefall[expcoefall$X=="distlinear2"|expcoefall$X=="waterboddist",]
+expcoefall2<-expcoefall[expcoefall$X!="distlinear2"&expcoefall$X!="waterboddist",]
+
+
+#Summer
+Summer<-expcoefall1[expcoefall1$season=="Summer",]
+library(Rmisc)
+library(boot)
+
+samplemean <- function(x, d) {
+  return(mean(x[d]))
+}
+
+vals<-expcoefall1$Estimate[expcoefall1$TOD=="Day"&expcoefall1$X=="waterboddist"]
+vals<-expcoefall1$Estimate[expcoefall1$TOD=="Night"&expcoefall1$X=="waterboddist"]
+vals<-expcoefall1$Estimate[expcoefall1$TOD=="Crepuscular"&expcoefall1$X=="waterboddist"]
+
+vals<-expcoefall1$Estimate[expcoefall1$TOD=="Day"&expcoefall1$X=="distlinear2"]
+vals<-expcoefall1$Estimate[expcoefall1$TOD=="Night"&expcoefall1$X=="distlinear2"]
+vals<-expcoefall1$Estimate[expcoefall1$TOD=="Crepuscular"&expcoefall1$X=="distlinear2"]
+
+expcoefall1$packidseasTODDX<-paste(expcoefall1$packidseasTODD,expcoefall1$X,sep="_")
+names(expcoefall1)
+expcoefall$seasTODDX<-paste(expcoefall$season,expcoefall$TOD,expcoefall$X,sep="_")
+
+#only 1 observation of each of the following
+
+table(expcoefall$seasTODDX)
+
+expcoefall<-expcoefall[expcoefall$seasTODDX!="Spring_Day_Developed",]
+expcoefall<-expcoefall[expcoefall$seasTODDX!="Spring_Day_DeciduousForest",]
+expcoefall<-expcoefall[expcoefall$seasTODDX!="Spring_Day_Agri",]
+expcoefall<-expcoefall[expcoefall$seasTODDX!="Spring_Night_EvergreenForest",]
+expcoefall<-expcoefall[expcoefall$seasTODDX!="Spring_Night_Developed",]
+expcoefall<-expcoefall[expcoefall$seasTODDX!="Spring_Crepuscular_Shrub/Scrub",]
+expcoefall<-expcoefall[expcoefall$seasTODDX!="Spring_Crepuscular_DeciduousForest",]
+expcoefall<-expcoefall[expcoefall$seasTODDX!="Spring_Day_HerbWet",]
+expcoefall<-expcoefall[expcoefall$seasTODDX!="Spring_Day_Shrub/Scrub",]
+expcoefall<-expcoefall[expcoefall$seasTODDX!="Spring_Night_HerbWet",]
+expcoefall<-expcoefall[expcoefall$seasTODDX!="Summer_Night_Developed",]
+expcoefall<-expcoefall[expcoefall$seasTODDX!="Winter_Crepuscular_DeciduousForest",]
 
 
 
+samplehold1<-data.frame(matrix(NA,1,6))
+
+for (i in 1:length(unique(expcoefall$seasTODDX))){
+  
+  subdat<-subset(expcoefall,expcoefall$seasTODDX==unique(expcoefall$seasTODDX)[i]) 
+vals<-subdat$Estimate
+  results <- boot(data=vals, samplemean,R=10000)
+plot(results)
+results
+out<-boot.ci(results,type="bca")
+out
+samplehold1[i,]<-cbind(out$t0,out$bca[4],out$bca[5],unique(subdat$X),unique(subdat$season),unique(subdat$TOD))
+}
+
+colnames(samplehold1)<-c("Mean","UPCI","LOCI","Var","Season","TOD")
+
+BootOut<-samplehold1
+
+write.csv(samplehold1,"C:/Users/ditme004/Dropbox/Moose_Manu_Code/NE_VNP/WolfMoose_FPT_RSF/WolfRSFOut_VNP/RSF_Bootstrap_102016.csv")
+
+
+results <- boot(data=vals, samplemean,R=10000)
+plot(results)
+
+results
+out<-boot.ci(results,type="bca")
+out
+
+T3<-data.frame(cbind(out$t0,out$bca[4],out$bca[5],"distlinear2","Summer","Night"))
+
+distlin<-rbind(T1,T2,T3)
+
+#waterbod
+#distlin
+
+#Summer,Night,-0.0001614555,(.00006362708*1.96)
+-0.0001614555-0.0001247091
+#original       bias     std. error
+ -0.0001614555 3.841708e-07 6.362708e-05
+#95%   (-0.0003, -0.0001 )  
+
+
+
+
+
+p3<-ggplot(expcoefall1[expcoefall1$Season=="Summer",], aes(x=X, y=Estimate, colour=TOD,fill=TOD))+
+  ggtitle("Summer")+
+  geom_abline(intercept=0, slope=0)+
+  geom_point(data=expcoefall1[expcoefall1$season=="Summer",],size=4,position=position_jitterdodge(dodge.width = .5))
+p3
+
+#Winter
+p3<-ggplot(expcoefall1[expcoefall1$Season=="Winter",], aes(x=X, y=Estimate, colour=TOD,fill=TOD))+
+  ggtitle("Winter")+
+  geom_abline(intercept=0, slope=0)+
+  geom_point(data=expcoefall1[expcoefall1$season=="Winter",],size=4,position=position_jitterdodge(dodge.width = .5))
+p3
+
+#Spring
+p3<-ggplot(expcoefall1[expcoefall1$Season=="Spring",], aes(x=X, y=Estimate, colour=TOD,fill=TOD))+
+  ggtitle("Spring")+
+  geom_abline(intercept=0, slope=0)+
+  geom_point(data=expcoefall1[expcoefall1$season=="Spring",],size=4,position=position_jitterdodge(dodge.width = .5))
+p3
+
+#Summer - Habitat
+p3<-ggplot(expcoefall2[expcoefall2$Season=="Summer",], aes(x=X, y=Estimate, colour=TOD,fill=TOD))+
+  ggtitle("Summer")+
+  geom_abline(intercept=0, slope=0)+
+  geom_point(data=expcoefall2[expcoefall2$season=="Summer",],size=4,position=position_jitterdodge(dodge.width = .5))+
+  ylim(-5,5)
+p3
+
+#Winter - Habitat
+p3<-ggplot(expcoefall2[expcoefall2$Season=="Winter",], aes(x=X, y=Estimate, colour=TOD,fill=TOD))+
+  ggtitle("Winter")+
+  geom_abline(intercept=0, slope=0)+
+  geom_point(data=expcoefall2[expcoefall2$season=="Winter",],size=4,position=position_jitterdodge(dodge.width = .5))+
+  ylim(-5,5)
+p3
+
+#Spring - Habitat
+p3<-ggplot(expcoefall2[expcoefall2$Season=="Spring",], aes(x=X, y=Estimate, colour=TOD,fill=TOD))+
+  ggtitle("Spring")+
+  geom_abline(intercept=0, slope=0)+
+  geom_point(data=expcoefall2[expcoefall2$season=="Spring",],size=4,position=position_jitterdodge(dodge.width = .5))
+p3
+
+
+summarySE <- function(data=NULL, measurevar, groupvars=NULL, na.rm=FALSE,
+                      conf.interval=.95, .drop=TRUE) {
+  library(plyr)
+  
+  # New version of length which can handle NA's: if na.rm==T, don't count them
+  length2 <- function (x, na.rm=FALSE) {
+    if (na.rm) sum(!is.na(x))
+    else       length(x)
+  }
+  
+  # This does the summary. For each group's data frame, return a vector with
+  # N, mean, and sd
+  datac <- ddply(data, groupvars, .drop=.drop,
+                 .fun = function(xx, col) {
+                   c(N    = length2(xx[[col]], na.rm=na.rm),
+                     mean = mean   (xx[[col]], na.rm=na.rm),
+                     sd   = sd     (xx[[col]], na.rm=na.rm)
+                   )
+                 },
+                 measurevar
+  )
+  
+  # Rename the "mean" column    
+  datac <- rename(datac, c("mean" = measurevar))
+  
+  datac$se <- datac$sd / sqrt(datac$N)  # Calculate standard error of the mean
+  
+  # Confidence interval multiplier for standard error
+  # Calculate t-statistic for confidence interval: 
+  # e.g., if conf.interval is .95, use .975 (above/below), and use df=N-1
+  ciMult <- qt(conf.interval/2 + .5, datac$N-1)
+  datac$ci <- datac$se * ciMult
+  
+  return(datac)
+}
+
+
+sumA<-summarySE(data=expcoefall,measurevar="Estimate",groupvars=c("X","season","TOD",conf.interval=.95))
+
+# sum$upci<-sum$Estimate+sum$ci
+# sum$loci<-sum$Estimate-sum$ci
+sumAsummer<-sumA[sumA$season=="Summer",]
+ggplot(sumAsummer, aes(x=X, y=Estimate, group=TOD)) +
+    geom_line() +
+    geom_errorbar(width=.1, aes(ymin=Estimate-ci, ymax=Estimate+ci), colour="red") +
+    # geom_errorbar(width=.1, aes(ymin=value-ci, ymax=value+ci), data=dfwc) +
+    geom_point(shape=21, size=3, fill="white") +
+    ylim(ymin,ymax)
+
+ggplot(expcoefall1, aes(x = X, y = Estimate)) +
+  geom_point(alpha=0.3, color="tomato", position = "jitter") +
+  geom_boxplot(alpha=0)+ facet_wrap( ~ TOD)
+
+
+ggplot(expcoefall2, aes(x = TOD, y = Estimate)) +
+  geom_point(alpha=0.3, color="tomato", position = "jitter") +
+  geom_boxplot(alpha=0)+ facet_wrap( ~ X)
+
+# 
+# 
+# +scale_colour_discrete(name  ="Time of Day",breaks=c("Crepuscular", "Day","Night"),labels=c("Crepuscular", "Day","Night"))   +          
+#   scale_fill_manual(values = c("gray","orange","black"), guide=guide_legend())+theme_bw()+
+#   theme(axis.text.x = element_text(face="bold", color="black", 
+#                                    size=14, angle=45),
+#         axis.text.y = element_text(face="bold", color="black", 
+#                                    size=14))+ylab("Beta Est.")
+# par(mfrow=c(1,1))
+# p3
+# 
+# head(expcoefall)
+```
+
+```{r}
+#Convert NLCD to points for prediction
+library(raster)
+
+#raster: NLCD habitat
+vegR<-raster("E:/Moose/Data/OutsideSpatial/NLCD11VNPclip1.tif")
+nlcdtab<-read.csv("E:/Moose/Data/OutsideSpatial/NLCD11_Table.csv",header=TRUE) #table so you can see what raster value
+nlcdtab[1:2]
+
+vegRpts<-rasterToPoints(vegR, fun=NULL, spatial=TRUE)
+str(vegRpts)
+
+saveRDS(vegRpts,"E:/Moose/FPT/DataProc/RSF_Predictions/NLCDtoPoints.R")
+
+vegRpts2<-readRDS("E:/Moose/FPT/DataProc/RSF_Predictions/NLCDtoPoints2cut_H2O.R")
+
+str(vegRpts)
+
+plot(vegRpts)
+
+
+ waterboddist<-raster("E:/Moose/Data/OutsideSpatial/All_MN_Water/distwat_5ha2")
+# # 
+# # ##snowmobile trails
+ snowmob<-readOGR("E:/Moose/Data/OutsideSpatial/NewSteveSnowmobileVNP",layer="All_DNR_VNPtrails") #shapfefiles: snowmobile trails
+snowmob.psp = as.psp(snowmob)
+# # 
+# # ##roads
+ roads<-readOGR("E:/Moose/Data/OutsideSpatial/Roads/Koochiching",layer="Koochiching_Roads")
+ roads.psp = as.psp(roads)
+
+trails<-readOGR("E:/Moose/Data/OutsideSpatial/Trails",layer="state_park_trails_roads_VNPclip")
+ trails.psp = as.psp(trails)
+
+table(vegRpts@data$NLCD11VNPclip1)
+
+vegRpts2<-vegRpts[vegRpts@data$NLCD11VNPclip1!=0,] 
+
+saveRDS(vegRpts2,"E:/Moose/FPT/DataProc/RSF_Predictions/NLCDtoPoints2.R")
+
+
+#extract the data from the spatial layers - avail
+system.time(vegRpts$veg<-extract(vegR, vegRpts))
+# avails$lakedist<-extract(lake30, avails[,1:2])
+# avails$lakepnddist<-extract(lakepnd30, avails[,1:2])
+
+vegRpts2$waterboddist<-extract(waterboddist, vegRpts2)
+#vegRpts$waterboddist[is.na(vegRpts$waterboddist)] <- 0
+
+str(vegRpts2)
+system.time(vegRpts2$distsnowmob<-nncross(vegRpts2@data[c("x","y")], snowmob.psp)$dist)
+avails$distroad<-nncross(avail, roads.psp)$dist 
+avails$disttrail<-nncross(avails, trails.psp)$dist 
+#extract the data from the spatial layers - used
+used<-data.frame(use)
+used$veg<-extract(vegR, used[,1:2])
 
 

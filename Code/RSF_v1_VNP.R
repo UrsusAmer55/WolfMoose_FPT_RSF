@@ -255,25 +255,42 @@ nlcdtab[1:2]
 
 lake30<-raster("E:/Moose/Data/Voyageurs_National_Park/lakedist30")
 lakepnd30<-raster("E:/Moose/Data/Voyageurs_National_Park/lakepnddist30")
-snowmob<-readOGR("E:/Moose/Data/OutsideSpatial",layer="snowmobile_trails_mn_studyclip") #shapfefiles: snowmobile trails
+
+####distance to water body, at least .5HA for larger region - use this one!
+waterboddist<-raster("E:/Moose/Data/OutsideSpatial/All_MN_Water/distwat_5ha2")
+
+
+##snowmobile trails
+
+snowmob<-readOGR("E:/Moose/Data/OutsideSpatial/NewSteveSnowmobileVNP",layer="All_DNR_VNPtrails") #shapfefiles: snowmobile trails
 snowmob.psp = as.psp(snowmob)
 
 
+##roads
+roads<-readOGR("E:/Moose/Data/OutsideSpatial/Roads/Koochiching",layer="Koochiching_Roads")
+roads.psp = as.psp(roads)
+
+
+
 avails$veg<-extract(vegR, avails[,1:2])
-avails$lakedist<-extract(lake30, avails[,1:2])
-avails$lakepnddist<-extract(lakepnd30, avails[,1:2])
+avails$waterboddist<-extract(waterboddist, avails[,1:2])
+#avails$lakepnddist<-extract(lakepnd30, avails[,1:2])
 
 avails$distsnowmob<-nncross(avail, snowmob.psp)$dist 
+avails$distroad<-nncross(avail, roads.psp)$dist 
+
 
 
 used<-data.frame(use)
 str(used)
 used$veg<-extract(vegR, used[,1:2])
-used$lakedist<-extract(lake30, used[,1:2])
-used$lakepnddist<-extract(lakepnd30, used[,1:2])
+used$waterboddist<-extract(waterboddist, used[,1:2])
+#used$lakepnddist<-extract(lakepnd30, used[,1:2])
 str(use)
 
 used$distsnowmob<-nncross(used, snowmob.psp)$dist 
+used$distroad<-nncross(used, roads.psp)$dist 
+
 use<-used
 
 
